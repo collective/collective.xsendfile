@@ -1,0 +1,25 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:monkey="http://namespaces.plone.org/monkey"
+    xmlns:five="http://namespaces.zope.org/five">
+
+  <five:registerPackage package="." initialize=".zope2.initialize" />
+
+  <include package="collective.monkeypatcher" />
+
+  <monkey:patch
+      description="Add support for XSendfile"
+      class="plone.app.blob.field.BlobField"
+      original="index_html"
+      replacement=".utils.index_html"
+      />
+      
+  <!-- monkey:patch
+      description="Add support for XSendfile"
+      class="Products.ATContentTypes.content.file.ATFile"
+      original="index_html"
+      replacement=".utils.index_html"
+      / -->
+      
+
+</configure>
