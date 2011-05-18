@@ -23,6 +23,13 @@ class IxsendfileSettings(Interface):
         required=False,
         )
 
+    xsendfile_enable_fallback = schema.Bool(
+        title=_(u"Enable fallback based on HTTP_X_FORWARDED_FOR proxy header"),
+        description=_(u"Check if REQUEST header contains HTTP_X_FORWARDED_FOR and re-enable fallback (zope) file delivery if no proxy is detected."),
+        default=True,
+        required=False,
+        )
+
     xsendfile_pathregex_search = schema.TextLine(
         title=_(u"Blob-path rewriting regex"),
         description=_(u"This regex will be used to modify the files path, in case you are using a different mountpoint on the xsendfile Server. If you are using nginx you have to prepend the id of the location you configured."),
