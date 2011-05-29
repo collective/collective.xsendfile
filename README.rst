@@ -18,6 +18,7 @@ which allows offloading of file uploads and downloads to the front end web serve
 XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
 Supported front-end web servers
+=================================
 
 * Apache
 
