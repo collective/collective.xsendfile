@@ -7,8 +7,6 @@
 
 """
 
-import pdb ; pdb.set_trace()
-
 import os
 from ZODB import utils
 from ZODB.blob import FilesystemHelper, BlobStorageMixin
