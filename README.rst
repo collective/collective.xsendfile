@@ -17,6 +17,12 @@ which allows offloading of file uploads and downloads to the front end web serve
 
 XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
+.. warning ::
+
+        This work is still unfinished as ZODB lacks one crucial feature.
+        
+* http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions        
+
 Supported front-end web servers
 =================================
 
@@ -173,6 +179,17 @@ More info
 *  http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
 
 * https://tn123.org/mod_xsendfile/
+
+Troubleshooting
+==================
+
+If you get HTTP response like::
+
+        OK
+        
+        The requested URL /site-images/xxx/cairo.jpg was not found on this server.
+
+It means a file permission issue? -XXX
 
 Authors
 ==========
