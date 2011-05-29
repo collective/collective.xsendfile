@@ -6,7 +6,7 @@
     purge="False">
 
     <configlet
-        title="XSendfile Settings"
+        title="XSendFile Settings"
         action_id="plone.app.event"
         appId="plone.app.event"
         category="Plone"

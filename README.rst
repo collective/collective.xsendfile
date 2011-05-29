@@ -4,8 +4,7 @@ Introduction
 ==============
 
 XSendFile is an enhancement over HTTP front end proxy protocol
-which allows offloading of file downloads to the front end web server
-(Apache / Nginx).
+which allows offloading of file uploads and downloads to the front end web server
 
 ``collective.xsendfile`` package adds XSendFile support for Plone.
 
@@ -18,6 +17,14 @@ which allows offloading of file downloads to the front end web server
 
 XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
+Supported front-end web servers
+
+* Apache
+
+* Nginx
+
+* Lighttpd
+
 Installation
 ==============
 
@@ -28,7 +35,7 @@ Installation
 * Enable XSendFile module on your front-end web server
   and virtual host configuration
   
-* Turn on XSendFile in Plone control panel   
+* In XSendFile Plone control panel, set HTTP header according to your server (Apache/Nginx)
 
 Enabling collective.xsendfile in buildout
 ====================================================
@@ -45,6 +52,17 @@ Then include it in the buildout.cfg::
                 
         develop =
              src/collective.xsendfile        
+
+Plone 4.0 and older installation additions
+----------------------------------------------
+             
+collective.xsendfile uses plone.app.registry.             
+You also might need to set up proper ``extends = `` like
+for Dexterity version pindowns, so that you don't
+get version conflicts during running buildout.
+
+* http://plone.org/products/dexterity/documentation/how-to/install
+              
         
 XSendFile installation for Apache on Debian/Ubuntu
 ====================================================
@@ -158,13 +176,13 @@ More info
 
 *  http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
 
-* http://celebnamer.celebworld.ws/stuff/mod_xsendfile/  
-  
 Authors
 ==========
 
 Georg Gogo. BERNHARD
 gogo@bluedynamics.com
+
+Jens W. Klein
 
 Mikko Ohtamaa
 mikko@mfabrik.com 

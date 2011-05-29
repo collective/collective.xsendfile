@@ -8,6 +8,7 @@ import logging
 import re
 
 from zope import component
+from zope.component import ComponentLookupError
 from webdav.common import rfc1123_date
 from zope.component import getUtility
 
@@ -17,14 +18,21 @@ from plone.registry.interfaces import IRegistry
 
 from collective.xsendfile.interfaces import IxsendfileSettings
 
+logger = logging.getLogger('collective.xsendfile')
+
 def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='inline'):
     """ Inject X-Sendfile and X-Accel-Redirect headers into response. """
-
-    logger = logging.getLogger('collective.xsendfile')
-    registry = getUtility(IRegistry)
     
-    settings = registry.forInterface(IxsendfileSettings)
-
+    try:
+        registry = getUtility(IRegistry)
+        settings = registry.forInterface(IxsendfileSettings)
+    except ComponentLookupError:
+        # This happens when collective.xsendfile egg is in place
+        # but add-on installer has not been run yet
+        settings = None
+        logger.warn("Could not load collective.xsendfile settings") 
+        
+        
     if REQUEST is None:
         REQUEST = instance.REQUEST
     if RESPONSE is None:
@@ -43,30 +51,36 @@ def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='in
     blob_file = zodb_blob.open()
     file_path = blob_file.name
     blob_file.close()
-    
-    responseheader = settings.xsendfile_responseheader
-    pathregex_search = settings.xsendfile_pathregex_search
-    pathregex_substitute = settings.xsendfile_pathregex_substitute
-    enable_fallback = settings.xsendfile_enable_fallback
-    
-    if responseheader and pathregex_substitute:
-        file_path = re.sub(pathregex_search,pathregex_substitute,file_path)
-    
+
     RESPONSE.setHeader('Last-Modified', rfc1123_date(instance._p_mtime))        
     RESPONSE.setHeader("Content-Length", blob.get_size())
     RESPONSE.setHeader('Content-Type', self.getContentType(instance))    
     
-    fallback = False
-    if not responseheader:
-        fallback = True
-    if enable_fallback:
-        if (not REQUEST.get('HTTP_X_FORWARDED_FOR')):
+    if settings is not None:
+        responseheader = settings.xsendfile_responseheader
+        pathregex_search = settings.xsendfile_pathregex_search
+        pathregex_substitute = settings.xsendfile_pathregex_substitute
+        enable_fallback = settings.xsendfile_enable_fallback
+        
+        if responseheader and pathregex_substitute:
+            file_path = re.sub(pathregex_search,pathregex_substitute,file_path)
+            
+        fallback = False
+        if not responseheader:
             fallback = True
+            logger.warn("No front end web server type selected")
+        if enable_fallback:
+            if (not REQUEST.get('HTTP_X_FORWARDED_FOR')):
+                fallback = True
+
+    else:
+        # Not yet installed through add-on installer
+        fallback = True
             
     if fallback:
-        logger.log(logging.WARNING, "Falling back to sending object %s.%s via Zope - no HTTP_X_FORWARDED_FOR header found."%(repr(instance),repr(self), )) 
+        logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), )) 
         return zodb_blob.open().read()
     else:
-        logger.log(logging.INFO, "Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path))) 
+        logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path))) 
         RESPONSE.setHeader(responseheader, file_path)
         return "collective.xsendfile - proxy missing?"
