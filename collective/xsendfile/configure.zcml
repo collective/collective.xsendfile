@@ -31,7 +31,7 @@
 
   <genericsetup:registerProfile
       name="default"
-      title="collective.xsendfile installation"
+      title="XSendFile support"
       directory="profiles/default"
       description="Installs the collective.xsendfile package"
       provides="Products.GenericSetup.interfaces.EXTENSION"

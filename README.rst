@@ -18,6 +18,18 @@ which allows offloading of file downloads to the front end web server
 
 XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
+Installation
+==============
+
+* Put collective.xsendfile to your buildout
+
+* Install the add-on to your site(s) through Plone add-on control panel
+
+* Enable XSendFile module on your front-end web server
+  and virtual host configuration
+  
+* Turn on XSendFile in Plone control panel   
+
 Enabling collective.xsendfile in buildout
 ====================================================
 
@@ -26,7 +38,14 @@ These instructions are for Github (trunk) version.
         cd src
         git clone git://github.com/collective/collective.xsendfile.git
         
+Then include it in the buildout.cfg::
 
+        eggs =
+             collective.xsenfile
+                
+        develop =
+             src/collective.xsendfile        
+        
 XSendFile installation for Apache on Debian/Ubuntu
 ====================================================
 
@@ -131,7 +150,13 @@ More info
 
 * https://github.com/collective/collective.xsendfile/tree/master/collective/xsendfile
 
+* http://blog.jazkarta.com/2010/09/21/handling-large-files-in-plone-with-ore-bigfile/
+
+* http://svn.objectrealms.net/view/public/browser/ore.bigfile/trunk/ore/bigfile/readme.txt?rev=2353
+
 * `Apache XSendFile installation instructions (Debian/Ubuntu) <http://www.qc4blog.com/?p=547>`_
+
+*  http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
 
 * http://celebnamer.celebworld.ws/stuff/mod_xsendfile/  
   

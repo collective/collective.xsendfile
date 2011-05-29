@@ -1,19 +1,28 @@
+"""
+    
+    XSendFile download support for BLOBs
+
+"""
 from datetime import datetime
-from webdav.common import rfc1123_date
+import logging
+import re
+
 from zope import component
+from webdav.common import rfc1123_date
+from zope.component import getUtility
+
 from Products.Archetypes.utils import contentDispositionHeader
 from plone.i18n.normalizer.interfaces import IUserPreferredFileNameNormalizer
-import logging
-from zope.component import getUtility
 from plone.registry.interfaces import IRegistry
+
 from collective.xsendfile.interfaces import IxsendfileSettings
-import re
 
 def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='inline'):
     """ Inject X-Sendfile and X-Accel-Redirect headers into response. """
 
     logger = logging.getLogger('collective.xsendfile')
     registry = getUtility(IRegistry)
+    
     settings = registry.forInterface(IxsendfileSettings)
 
     if REQUEST is None:

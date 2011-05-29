@@ -29,10 +29,11 @@ setup(name='collective.xsendfile',
           'collective.monkeypatcher',
           'plone.app.registry',
           'plone.registry',
-          'ore.bigfile',
           'z3c.form',
       ],
       entry_points="""
       # -*- Entry points: -*-
+      [z3c.autoinclude.plugin]
+      target = plone
       """,
       )
