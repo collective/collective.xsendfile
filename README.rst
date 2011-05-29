@@ -68,19 +68,14 @@ get version conflicts during running buildout.
 XSendFile installation for Apache on Debian/Ubuntu
 ====================================================
 
-Add the apt source to ``/etc/apt/sources.list``::
+Install Apache module (Debian/Ubuntu)::
 
-        deb http://ppa.launchpad.net/damokles/ubuntu hardy main
-        deb-src http://ppa.launchpad.net/damokles/ubuntu hardy main
-
-To enable new software repository run::
+        # alternatively -thread-dev, depends on your apache configuration
+        sudo apt-get install apt-get install apache2-prefork-dev         
+        wget --no-check-certificate https://tn123.org/mod_xsendfile/mod_xsendfile.c 
+        sudo apxs2 -cia mod_xsendfile.c
         
-        sudo apt-get update       
-
-Install Apache module::
-
-        sudo apt-get install libapache2-mod-xsendfile
-        
+                
 Enable Apache module::
 
         sudo a2enmod xsendfile
@@ -176,6 +171,8 @@ More info
 * `Apache XSendFile installation instructions (Debian/Ubuntu) <http://www.qc4blog.com/?p=547>`_
 
 *  http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
+
+* https://tn123.org/mod_xsendfile/
 
 Authors
 ==========
