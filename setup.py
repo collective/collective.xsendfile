@@ -1,22 +1,23 @@
 from setuptools import setup, find_packages
 import os
 
-version = '1.0'
+version = '1.1b1'
 
 setup(name='collective.xsendfile',
       version=version,
-      description="This product enables the delivery of Blob Binaries from filesystem instead of the ZODB via XSendfile",
-      long_description=open("README.txt").read() + "\n" +
+      description="Offload ZODB BLOB download to front end web server using XSendfile protocol",
+      long_description=open("README.rst").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       # Get more strings from
       # http://pypi.python.org/pypi?:action=list_classifiers
       classifiers=[
         "Programming Language :: Python",
+        "Framework :: Plone",
         ],
       keywords='',
-      author='',
-      author_email='',
-      url='http://svn.plone.org/svn/collective/',
+      author='Mikko Ohtamaa',
+      author_email='mikko@mfabrik.com',
+      url='https://github.com/collective/collective.xsendfile',
       license='GPL',
       packages=find_packages(exclude=['ez_setup']),
       namespace_packages=['collective'],
@@ -28,10 +29,11 @@ setup(name='collective.xsendfile',
           'collective.monkeypatcher',
           'plone.app.registry',
           'plone.registry',
-          'ore.bigfile',
           'z3c.form',
       ],
       entry_points="""
       # -*- Entry points: -*-
+      [z3c.autoinclude.plugin]
+      target = plone
       """,
       )
