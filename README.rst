@@ -214,5 +214,5 @@ mikko@mfabrik.com
 Jens W. Klein
 jens@bluedynamics.com
 
-Special thanks to Kapil Thangavelu, we extensively borrowed his code ;-)
+Special thanks to Kapil Thangavelu, we extensively borrowed from his code ;-)
 
