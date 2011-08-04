@@ -184,7 +184,7 @@ More info
 
 * `Apache XSendFile installation instructions (Debian/Ubuntu) <http://www.qc4blog.com/?p=547>`_
 
-*  http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
+* http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
 
 * https://tn123.org/mod_xsendfile/
 
@@ -197,15 +197,22 @@ If you get HTTP response like::
         
         The requested URL /site-images/xxx/cairo.jpg was not found on this server.
 
-It means a file permission issue? -XXX
+It means a file permission issue? - XXX
 
 Authors
 ==========
 
+Peter Holzer
+peter@agitator.com
+
 Georg Gogo. BERNHARD
 gogo@bluedynamics.com
 
-Jens W. Klein
-
 Mikko Ohtamaa
 mikko@mfabrik.com 
+
+Jens W. Klein
+jens@bluedynamics.com
+
+Special thanks to Kapil Thangavelu, we extensively borrowed his code ;-)
+
