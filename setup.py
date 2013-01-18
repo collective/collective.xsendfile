@@ -29,7 +29,7 @@ setup(name='collective.xsendfile',
           'collective.monkeypatcher',
           'plone.app.registry',
           'plone.registry',
-          'z3c.form',
+          # 'z3c.form',
       ],
       entry_points="""
       # -*- Entry points: -*-
