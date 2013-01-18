@@ -27,8 +27,8 @@ setup(name='collective.xsendfile',
           'setuptools',
           # -*- Extra requirements: -*-
           'collective.monkeypatcher',
-          'plone.app.registry',
-          'plone.registry',
+#          'plone.app.registry',
+#          'plone.registry',
           # 'z3c.form',
       ],
       entry_points="""
