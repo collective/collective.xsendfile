@@ -52,6 +52,23 @@ Installation
   
 * In XSendFile Plone control panel, set HTTP header according to your server (Apache/Nginx)
 
+It is also possible to setup collective.xsendfile globablly for all your plone
+sites in a plone instance by using environment variables.
+
+XSENDFILE_RESPONSEHEADER will activate global configuration. Set it to either
+
+
+XSENDFILE_ENABLE_FALLBACK True means if HTTP_X_FORWARDED_FOR isn't found in the request
+  prevent xsendfile processing from occuring
+
+XSENDFILE_PATHREGEX_SEARCH If you need modify the full path of a blob you can extract parts
+  of it here. Defaults to "(.*)"
+
+XSENDFILE_PATHREGEX_SUBSTITUTE If you need to modify the full path of a blob you can
+  use this replace parts of the path here. Defaults to "\1". If you are using
+  nginx is will likely be something like "/xsendfile\1"
+
+
 Enabling collective.xsendfile in buildout
 ====================================================
 
