@@ -6,6 +6,7 @@
 from datetime import datetime
 import logging
 import re
+from plone.app.blob.iterators import BlobStreamIterator
 
 from zope import component
 from zope.component import ComponentLookupError
@@ -18,11 +19,23 @@ from plone.registry.interfaces import IRegistry
 
 from collective.xsendfile.interfaces import IxsendfileSettings
 import os
+from Acquisition import Explicit, aq_inner
+from zope.publisher.interfaces import IPublishTraverse, NotFound
+from plone.namedfile.utils import safe_basename, set_headers, stream_data
+from plone.namedfile.interfaces import IBlobby
+from zope.component import adapter, getMultiAdapter
+from z3c.form.interfaces import IFieldWidget, IFormLayer, IDataManager, NOVALUE
 
 logger = logging.getLogger('collective.xsendfile')
 
-def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='inline'):
-    """ Inject X-Sendfile and X-Accel-Redirect headers into response. """
+
+def set_xsendfile_header(request, blob):
+    """ set the xsendheader response header if enabled
+        Inject X-Sendfile and X-Accel-Redirect headers into response.
+        return True if set
+    """
+#    blob = self.getUnwrapped(instance, raw=True)    # TODO: why 'raw'?
+
     if "XSENDFILE_RESPONSEHEADER" in os.environ:
         responseheader = os.environ["XSENDFILE_RESPONSEHEADER"]
         enable_fallback = os.environ.get("XSENDFILE_ENABLE_FALLBACK", "True").lower() in ['true', 'yes']
@@ -42,52 +55,92 @@ def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='in
             # but add-on installer has not been run yet
             settings = None
             logger.warn("Could not load collective.xsendfile settings")
-        
-        
-    if REQUEST is None:
-        REQUEST = instance.REQUEST
-    if RESPONSE is None:
-        RESPONSE = REQUEST.RESPONSE
-    filename = self.getFilename(instance)
-    if filename is not None:
-        filename = IUserPreferredFileNameNormalizer(REQUEST).normalize(
-            unicode(filename, instance.getCharset()))
-        header_value = contentDispositionHeader(
-            disposition=disposition,
-            filename=filename)
-        RESPONSE.setHeader("Content-disposition", header_value)
-    
-    blob = self.getUnwrapped(instance, raw=True)    # TODO: why 'raw'?
-    zodb_blob = blob.getBlob()
-    blob_file = zodb_blob.open()
-    file_path = blob_file.name
-    blob_file.close()
 
-    RESPONSE.setHeader('Last-Modified', rfc1123_date(instance._p_mtime))        
-    RESPONSE.setHeader("Content-Length", blob.get_size())
-    RESPONSE.setHeader('Content-Type', self.getContentType(instance))    
-    
+
     if settings is not None:
+        if IBlobby.providedBy(blob):
+            zodb_blob = blob._blob
+        else:
+            zodb_blob = blob.getBlob()
+        blob_file = zodb_blob.open()
+        file_path = blob_file.name
+        blob_file.close()
 
         if responseheader and pathregex_substitute:
             file_path = re.sub(pathregex_search,pathregex_substitute,file_path)
-            
+
         fallback = False
         if not responseheader:
             fallback = True
             logger.warn("No front end web server type selected")
         if enable_fallback:
-            if (not REQUEST.get('HTTP_X_FORWARDED_FOR')):
+            if (not request.get('HTTP_X_FORWARDED_FOR')):
                 fallback = True
 
     else:
         # Not yet installed through add-on installer
         fallback = True
-            
+
     if fallback:
-        logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), )) 
-        return zodb_blob.open().read()
+        #logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), ))
+        return False
     else:
-        logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path))) 
-        RESPONSE.setHeader(responseheader, file_path)
+        #logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path)))
+        request.RESPONSE.setHeader(responseheader, file_path)
+        return True
+
+
+# Patches to plone.app.blob.field.BlobWrapper
+def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
+    """ called at the end of BlobWrapper.index_html"""
+    if IBlobby.providedBy(file) and set_xsendfile_header(self.request, self.blob):
         return "collective.xsendfile - proxy missing?"
+    else:
+        return BlobStreamIterator(self.blob, **kw)
+
+# Patches to plone.namedfile.browser.Download.__call__
+# url similar to ../@@download/fieldname/filename
+#  and also used for ../context/@@display-file/fieldname/filename
+
+
+def monkeypatch_plone_namedfile_browser_Download__call__(self):
+    file = self._getFile()
+    self.set_headers(file)
+    if IBlobby.providedBy(file) and set_xsendfile_header(self.request, file):
+        return "collective.xsendfile - proxy missing?"
+    else:
+        return stream_data(file)
+
+# Patches to plone.formwidget.namedfile.widget.Download.__call__
+
+def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
+
+    # TODO: Security check on form view/widget
+
+    if self.context.ignoreContext:
+        raise NotFound("Cannot get the data file from a widget with no context")
+
+    if self.context.form is not None:
+        content = aq_inner(self.context.form.getContent())
+    else:
+        content = aq_inner(self.context.context)
+    field = aq_inner(self.context.field)
+
+    dm = getMultiAdapter((content, field,), IDataManager)
+    file_ = dm.get()
+    if file_ is None:
+        raise NotFound(self, self.filename, self.request)
+
+    if not self.filename:
+        self.filename = getattr(file_, 'filename', None)
+
+    set_headers(file_, self.request.response, filename=self.filename)
+    if IBlobby.providedBy(file_) and set_xsendfile_header(self.request, file_):
+        return "collective.xsendfile - proxy missing?"
+    else:
+        return stream_data(file_)
+
+# TODO Patch plone.app.blob.scale.BlobImageScaleHandler
+# need a better version of ImageScale that doesn't open the blob
+# looks very hard however since scales currently use Image class
+# which reads sizes from the data which kind of defeats the purpose

@@ -24,9 +24,21 @@
   <include package="collective.monkeypatcher" />
   <monkey:patch
       description="Add support for XSendfile"
-      class="plone.app.blob.field.BlobField"
-      original="index_html"
-      replacement=".utils.index_html"
+      class="plone.app.blob.field.BlobWrapper"
+      original="getIterator"
+      replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
+      />
+  <monkey:patch
+      description="Add support for XSendfile"
+      class="plone.namedfile.browser.Download"
+      original="__call__"
+      replacement=".utils.monkeypatch_plone_namedfile_browser_Download__call__"
+      />
+  <monkey:patch
+      description="Add support for XSendfile"
+      class="plone.formwidget.namedfile.widget.Download"
+      original="__call__"
+      replacement=".utils.monkeypatch_plone_formwidget_namedfile_widget_download__call__"
       />
 
   <genericsetup:registerProfile

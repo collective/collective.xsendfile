@@ -55,7 +55,8 @@ Installation
 It is also possible to setup collective.xsendfile globablly for all your plone
 sites in a plone instance by using environment variables.
 
-XSENDFILE_RESPONSEHEADER will activate global configuration. Set it to either
+XSENDFILE_RESPONSEHEADER will activate global configuration. Likely values are either
+  "X-Sendfile" (apache) or "X-Accel-Redirect" (nginx)
 
 
 XSENDFILE_ENABLE_FALLBACK True means if HTTP_X_FORWARDED_FOR isn't found in the request
