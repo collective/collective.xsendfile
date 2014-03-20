@@ -6,6 +6,7 @@
 from datetime import datetime
 import logging
 import re
+from ZODB.interfaces import IBlob
 from plone.app.blob.iterators import BlobStreamIterator
 
 from zope import component
@@ -60,8 +61,11 @@ def set_xsendfile_header(request, blob):
     if settings is not None:
         if IBlobby.providedBy(blob):
             zodb_blob = blob._blob
+        elif IBlob.providedBy(blob):
+            zodb_blob = blob
         else:
-            zodb_blob = blob.getBlob()
+            #zodb_blob = blob.getBlob()
+            return False
         blob_file = zodb_blob.open()
         file_path = blob_file.name
         blob_file.close()
@@ -93,7 +97,9 @@ def set_xsendfile_header(request, blob):
 # Patches to plone.app.blob.field.BlobWrapper
 def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
     """ called at the end of BlobWrapper.index_html"""
-    if IBlobby.providedBy(file) and set_xsendfile_header(self.request, self.blob):
+    #HACK: we are ignoring REQUEST and RESPONSE that could have been passed
+    # into index_html
+    if set_xsendfile_header(self.REQUEST, self.blob):
         return "collective.xsendfile - proxy missing?"
     else:
         return BlobStreamIterator(self.blob, **kw)
@@ -114,8 +120,6 @@ def monkeypatch_plone_namedfile_browser_Download__call__(self):
 # Patches to plone.formwidget.namedfile.widget.Download.__call__
 
 def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
-
-    # TODO: Security check on form view/widget
 
     if self.context.ignoreContext:
         raise NotFound("Cannot get the data file from a widget with no context")
