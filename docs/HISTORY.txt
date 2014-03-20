@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.1b1 (unreleased)
+------------------
+
+- Can use environment variables to globally set xsendfile for all sites
+
 1.0dev (unreleased)
 -------------------
 

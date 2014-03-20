@@ -17,20 +17,31 @@ from plone.i18n.normalizer.interfaces import IUserPreferredFileNameNormalizer
 from plone.registry.interfaces import IRegistry
 
 from collective.xsendfile.interfaces import IxsendfileSettings
+import os
 
 logger = logging.getLogger('collective.xsendfile')
 
 def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='inline'):
     """ Inject X-Sendfile and X-Accel-Redirect headers into response. """
-    
-    try:
-        registry = getUtility(IRegistry)
-        settings = registry.forInterface(IxsendfileSettings)
-    except ComponentLookupError:
-        # This happens when collective.xsendfile egg is in place
-        # but add-on installer has not been run yet
-        settings = None
-        logger.warn("Could not load collective.xsendfile settings") 
+    if "XSENDFILE_RESPONSEHEADER" in os.environ:
+        responseheader = os.environ["XSENDFILE_RESPONSEHEADER"]
+        enable_fallback = os.environ.get("XSENDFILE_ENABLE_FALLBACK", "True").lower() in ['true', 'yes']
+        pathregex_search = os.environ.get('XSENDFILE_PATHREGEX_SEARCH', r'(.*)')
+        pathregex_substitute = os.environ.get('XSENDFILE_PATHREGEX_SUBSTITUTE', r'\1')
+        settings = True
+    else:
+        try:
+            registry = getUtility(IRegistry)
+            settings = registry.forInterface(IxsendfileSettings)
+            responseheader = settings.xsendfile_responseheader
+            pathregex_search = settings.xsendfile_pathregex_search
+            pathregex_substitute = settings.xsendfile_pathregex_substitute
+            enable_fallback = settings.xsendfile_enable_fallback
+        except ComponentLookupError:
+            # This happens when collective.xsendfile egg is in place
+            # but add-on installer has not been run yet
+            settings = None
+            logger.warn("Could not load collective.xsendfile settings")
         
         
     if REQUEST is None:
@@ -57,11 +68,7 @@ def index_html(self, instance=None, REQUEST=None, RESPONSE=None, disposition='in
     RESPONSE.setHeader('Content-Type', self.getContentType(instance))    
     
     if settings is not None:
-        responseheader = settings.xsendfile_responseheader
-        pathregex_search = settings.xsendfile_pathregex_search
-        pathregex_substitute = settings.xsendfile_pathregex_substitute
-        enable_fallback = settings.xsendfile_enable_fallback
-        
+
         if responseheader and pathregex_substitute:
             file_path = re.sub(pathregex_search,pathregex_substitute,file_path)
             
