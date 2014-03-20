@@ -30,7 +30,7 @@ from z3c.form.interfaces import IFieldWidget, IFormLayer, IDataManager, NOVALUE
 logger = logging.getLogger('collective.xsendfile')
 
 
-def set_xsendfile_header(request, blob):
+def set_xsendfile_header(request, response, blob):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
@@ -90,19 +90,51 @@ def set_xsendfile_header(request, blob):
         return False
     else:
         #logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path)))
-        request.RESPONSE.setHeader(responseheader, file_path)
+        response.setHeader(responseheader, file_path)
         return True
 
 
 # Patches to plone.app.blob.field.BlobWrapper
+
+def plone_app_blob_field_BlobWrapper_index_html(self, REQUEST=None, RESPONSE=None, charset='utf-8', disposition='inline'):
+    # just override to ensure we store the request, then rely on getIterator
+    # just in case the logic in the middle changes over time
+
+    if REQUEST is None:
+        self._v_REQUEST = self.REQUEST
+    else:
+        self._v_REQUEST = REQUEST
+
+    if RESPONSE is None:
+        self._v_RESPONSE = self._v_REQUEST.RESPONSE
+    else:
+        self._v_RESPONSE = RESPONSE
+
+    res = self._old_index_html(REQUEST, RESPONSE, charset, disposition)
+
+    if getattr(self, '_v_REQUEST'):
+        del self._v_REQUEST
+    if getattr(self, '_v_RESPONSE'):
+        del self._v_RESPONSE
+
+    return res
+
+
+
 def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
     """ called at the end of BlobWrapper.index_html"""
-    #HACK: we are ignoring REQUEST and RESPONSE that could have been passed
-    # into index_html
-    if set_xsendfile_header(self.REQUEST, self.blob):
+    if getattr(self, '_v_REQUEST'):
+        request = self._v_REQUEST
+    else:
+        request = self.REQUEST
+    if getattr(self, '_v_RESPONSE'):
+        response = self._v_RESPONSE
+    else:
+        response = request.RESPONSE
+    if set_xsendfile_header(request, response, self.blob):
         return "collective.xsendfile - proxy missing?"
     else:
-        return BlobStreamIterator(self.blob, **kw)
+        return self._old_getIterator(**kw)
 
 # Patches to plone.namedfile.browser.Download.__call__
 # url similar to ../@@download/fieldname/filename
@@ -112,7 +144,7 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 def monkeypatch_plone_namedfile_browser_Download__call__(self):
     file = self._getFile()
     self.set_headers(file)
-    if IBlobby.providedBy(file) and set_xsendfile_header(self.request, file):
+    if set_xsendfile_header(self.request, self.request.response, file):
         return "collective.xsendfile - proxy missing?"
     else:
         return stream_data(file)
@@ -139,7 +171,7 @@ def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
         self.filename = getattr(file_, 'filename', None)
 
     set_headers(file_, self.request.response, filename=self.filename)
-    if IBlobby.providedBy(file_) and set_xsendfile_header(self.request, file_):
+    if set_xsendfile_header(self.request, self.request.response, file_):
         return "collective.xsendfile - proxy missing?"
     else:
         return stream_data(file_)
