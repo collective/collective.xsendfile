@@ -42,5 +42,8 @@ jsdoc*
 releases
 
 .DS_Store
-
+.idea
+include/
+lib/
+src/
 

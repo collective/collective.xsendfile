@@ -31,6 +31,10 @@ setup(name='collective.xsendfile',
           'plone.registry',
           # 'z3c.form',
       ],
+      extras_require={
+          'test': [
+          ],
+      },
       entry_points="""
       # -*- Entry points: -*-
       [z3c.autoinclude.plugin]
