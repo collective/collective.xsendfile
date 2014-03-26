@@ -1,9 +1,15 @@
+# -*- coding: utf-8 -*-
 import os
 import unittest
-from plone.app.testing import setRoles, login, TEST_USER_NAME, TEST_USER_ID
-from collective.xsendfile.testing import INTEGRATION_TESTING
+
+from plone.app.testing import setRoles
+from plone.app.testing import login
+from plone.app.testing import TEST_USER_NAME
+from plone.app.testing import TEST_USER_ID
 from plone.app.imaging.tests.utils import getData
 from ZPublisher.BaseRequest import DefaultPublishTraverse
+
+from collective.xsendfile.testing import INTEGRATION_TESTING
 
 
 class IntegrationTestCase(unittest.TestCase):
@@ -17,12 +23,12 @@ class IntegrationTestCase(unittest.TestCase):
 
         self.data = getData('image.gif')
         self.image = self.portal[self.portal.invokeFactory('Image', id='foo',
-            image=self.data)]
+                                                           image=self.data)]
         field = self.image.getField('image')
         self.available = field.getAvailableSizes(self.image)
 
         self.file = self.portal[self.portal.invokeFactory('File', id='bar',
-            file=self.data)]
+                                                          file=self.data)]
 
     def _traverse(self, path):
         pass
@@ -46,15 +52,14 @@ class IntegrationTestCase(unittest.TestCase):
 
         ob2()
         content_type = request.RESPONSE.getHeader('content-type')
-        content_length = request.RESPONSE.getHeader('content-length')
         self.assertEqual(content_type, 'image/gif')
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
         self.assertIsNotNone(xsendfile)
 
-
     def test_plone_namedfile(self):
-        #@@download/fieldname/filename
+        """ @@download/fieldname/filename
+        """
 
         request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
