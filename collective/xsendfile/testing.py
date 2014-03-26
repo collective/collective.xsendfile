@@ -1,30 +1,52 @@
-import unittest
+# -*- coding: utf-8 -*-
+from plone.app.robotframework.testing import REMOTE_LIBRARY_BUNDLE_FIXTURE
+from plone.app.testing import applyProfile
+from plone.app.testing import FunctionalTesting
+from plone.app.testing import IntegrationTesting
+from plone.app.testing import PLONE_FIXTURE
+from plone.app.testing import PloneSandboxLayer
+from plone.registry.interfaces import IRegistry
+from plone.testing import z2
+from plone.testing.z2 import ZSERVER_FIXTURE
+from zope.component import getUtility
+from zope.configuration import xmlconfig
+import collective.xsendfile
 
-from zope.testing import doctestunit
-from zope.component import testing
-from Testing import ZopeTestCase as ztc
 
-def test_suite():
-    return unittest.TestSuite([
 
-        # Unit tests for your API
-        doctestunit.DocFileSuite(
-            'README.txt', package='collective.xsendfile',
-            setUp=testing.setUp, tearDown=testing.tearDown),
+class TestLayer(PloneSandboxLayer):
+    defaultBases = (PLONE_FIXTURE, )
 
-        #doctestunit.DocTestSuite(
-        #    module='collective.xsendfile.mymodule',
-        #    setUp=testing.setUp, tearDown=testing.tearDown),
+    def setUpZope(self, app, configurationContext):
+        # Load ZCML for this package
 
-        # Integration tests that use ZopeTestCase
-        #ztc.ZopeDocFileSuite(
-        #    'README.txt', package='collective.xsendfile',
-        #    setUp=testing.setUp, tearDown=testing.tearDown),
+        xmlconfig.file('configure.zcml', collective.xsendfile,
+                       context=configurationContext)
+#        xmlconfig.file('configure.zcml', plone.app.event,
+#                       context=configurationContext)
+#        z2.installProduct(app, 'Products.DateRecurringIndex')
 
-        #ztc.FunctionalDocFileSuite(
-        #    'browser.txt', package='collective.xsendfile'),
 
-        ])
+    def tearDownZope(self, app):
+        # Uninstall products installed above
+        pass
 
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    def setUpPloneSite(self, portal):
+#        applyProfile(portal, 'plone.app.contenttypes:default')
+        pass
+
+
+FIXTURE = TestLayer()
+
+INTEGRATION_TESTING = IntegrationTesting(
+    bases=(FIXTURE,),
+    name='collective.xsendfile:Integration')
+FUNCTIONAL_TESTING = FunctionalTesting(
+    bases=(FIXTURE,),
+    name='collective.xsendfile:Functional')
+
+ROBOT_TESTING = FunctionalTesting(
+    bases=(FIXTURE,
+           REMOTE_LIBRARY_BUNDLE_FIXTURE,
+           ZSERVER_FIXTURE),
+    name='collective.xsendfile:Robot')

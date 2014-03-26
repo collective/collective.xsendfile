@@ -33,6 +33,8 @@ setup(name='collective.xsendfile',
       ],
       extras_require={
           'test': [
+              'plone.app.testing',
+              'plone.app.robotframework'
           ],
       },
       entry_points="""

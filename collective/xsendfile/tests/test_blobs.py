@@ -1,92 +1,115 @@
-from unittest import TestSuite, makeSuite
-from plone.app.blob.tests.base import ReplacementTestCase
-from plone.app.blob.tests.base import ReplacementFunctionalTestCase
-from plone.app.imaging.tests.base import ImagingTestCaseMixin
-from plone.app.imaging.scaling import ImageScaling
-from re import match
+import os
+import unittest
+from plone.app.testing import setRoles, login, TEST_USER_NAME, TEST_USER_ID
+from collective.xsendfile.testing import INTEGRATION_TESTING
+from plone.app.imaging.tests.utils import getData
+from ZPublisher.BaseRequest import DefaultPublishTraverse
 
 
-class ImageTraverseTests(ReplacementTestCase, ImagingTestCaseMixin):
+class IntegrationTestCase(unittest.TestCase):
+    layer = INTEGRATION_TESTING
 
-    def afterSetUp(self):
-        self.data = self.getImage()
-        self.image = self.folder[self.folder.invokeFactory('Image', id='foo',
+    def setUp(self):
+        self.portal = self.layer['portal']
+        self.request = self.layer['request']
+        setRoles(self.portal, TEST_USER_ID, ['Manager'])
+        login(self.portal, TEST_USER_NAME)
+
+        self.data = getData('image.gif')
+        self.image = self.portal[self.portal.invokeFactory('Image', id='foo',
             image=self.data)]
         field = self.image.getField('image')
         self.available = field.getAvailableSizes(self.image)
 
-    def traverse(self, path=''):
-        view = self.image.unrestrictedTraverse('@@images')
-        stack = path.split('/')
-        name = stack.pop(0)
-        tag = view.traverse(name, stack)
-        base = self.image.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />' % base
-        groups = match(expected, tag).groups()
-        self.assertTrue(groups, tag)
-        uid, ext, height, width = groups
-        return uid, ext, int(width), int(height)
+        self.file = self.portal[self.portal.invokeFactory('File', id='bar',
+            file=self.data)]
 
-    def testImageThumb(self):
-        self.assertTrue('thumb' in self.available.keys())
-        uid, ext, width, height = self.traverse('image/thumb')
-        self.assertEqual((width, height), self.available['thumb'])
-        self.assertEqual(ext, 'jpeg')
+    def _traverse(self, path):
+        pass
 
-    def testCustomSizes(self):
-        # set custom image sizes
-        iprops = self.portal.portal_properties.imaging_properties
-        iprops.manage_changeProperties(allowed_sizes=['foo 23:23'])
-        # make sure traversing works with the new sizes
-        uid, ext, width, height = self.traverse('image/foo')
-        self.assertEqual(width, 23)
-        self.assertEqual(height, 23)
-
-    def testScaleInvalidation(self):
-        # first view the thumbnail of the original image
-        uid1, ext, width1, height1 = self.traverse('image/thumb')
-        # now upload a new one and make sure the thumbnail has changed
-        self.image.update(image=self.getImage('image.jpg'))
-        uid2, ext, width2, height2 = self.traverse('image/thumb')
-        self.assertNotEqual(uid1, uid2, 'thumb not updated?')
-        # the height also differs as the original image had a size of 200, 200
-        # whereas the updated one has 500, 200...
-        self.assertEqual(width1, width2)
-        self.assertNotEqual(height1, height2)
-
-    def testCustomSizeChange(self):
-        # set custom image sizes & view a scale
-        iprops = self.portal.portal_properties.imaging_properties
-        iprops.manage_changeProperties(allowed_sizes=['foo 23:23'])
-        uid1, ext, width, height = self.traverse('image/foo')
-        self.assertEqual(width, 23)
-        self.assertEqual(height, 23)
-        # now let's update the scale dimensions, after which the scale
-        # should also have been updated...
-        iprops.manage_changeProperties(allowed_sizes=['foo 42:42'])
-        uid2, ext, width, height = self.traverse('image/foo')
-        self.assertEqual(width, 42)
-        self.assertEqual(height, 42)
-        self.assertNotEqual(uid1, uid2, 'scale not updated?')
-
-    def testDefaultPublish(self):
-        request = self.folder.REQUEST
+    def test_plone_app_blob(self):
+        request = self.portal.REQUEST
         view = self.image.unrestrictedTraverse('@@images')
         image = view.publishTraverse(request, 'image')
-        size = image.get_size()
 
         # Rewrap image scale to leave out the image class
         # implementation. We do this to test the situation where we do
         # not have class-supported publishing (e.g. with schema
         # extension).
-        image = image.aq_base.__of__(self.folder)
+        image = image.aq_base.__of__(self.portal)
 
-        from ZPublisher.BaseRequest import DefaultPublishTraverse
         adapter = DefaultPublishTraverse(image, request)
         ob2 = adapter.publishTraverse(request, 'index_html')
+
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
         ob2()
         content_type = request.RESPONSE.getHeader('content-type')
         content_length = request.RESPONSE.getHeader('content-length')
         self.assertEqual(content_type, 'image/gif')
-        self.assertEqual(content_length, str(size))
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+
+
+    def test_plone_namedfile(self):
+        #@@download/fieldname/filename
+
+        request = self.portal.REQUEST
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNone(xsendfile)
+
+        view = self.file.unrestrictedTraverse('@@download')
+        file = view.publishTraverse(request, 'file')
+        file()
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+
+    def test_plone_namedfile_filename(self):
+        #@@download/fieldname/filename
+
+        request = self.portal.REQUEST
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        view = self.file.unrestrictedTraverse('@@download')
+        file = view.publishTraverse(request, 'file')
+        filename = file.publishTraverse(request, 'filename')
+        filename()
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+
+    def test_substitute(self):
+        #@@download/fieldname/filename
+
+        request = self.portal.REQUEST
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        os.environ['XSENDFILE_PATHREGEX_SEARCH'] = r'(.*)'
+        os.environ['XSENDFILE_PATHREGEX_SUBSTITUTE'] = r'/xsendfile/\1'
+
+        view = self.file.unrestrictedTraverse('@@download')
+        file = view.publishTraverse(request, 'file')
+        file()
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+        self.assertIn('/xsendfile/', xsendfile)
+
+    def test_fallback(self):
+        #@@download/fieldname/filename
+
+        request = self.portal.REQUEST
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        os.environ["XSENDFILE_ENABLE_FALLBACK"] = 'True'
+        view = self.file.unrestrictedTraverse('@@download')
+        file = view.publishTraverse(request, 'file')
+        file()
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNone(xsendfile)

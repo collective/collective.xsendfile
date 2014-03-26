@@ -1,4 +1,7 @@
-.. contents ::
+.. contents::
+
+.. image:: https://secure.travis-ci.org/collective/collective.xsendfile.png
+    :target: http://travis-ci.org/collective/collective.xsendfile
 
 Introduction
 ==============
@@ -231,6 +234,9 @@ mikko@mfabrik.com
 
 Jens W. Klein
 jens@bluedynamics.com
+
+Dylan Jay
+software@pretaweb.com
 
 Special thanks to Kapil Thangavelu, we extensively borrowed from his code ;-)
 

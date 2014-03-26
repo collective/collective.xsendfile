@@ -51,7 +51,7 @@ def set_xsendfile_header(request, response, blob):
             pathregex_search = settings.xsendfile_pathregex_search
             pathregex_substitute = settings.xsendfile_pathregex_substitute
             enable_fallback = settings.xsendfile_enable_fallback
-        except ComponentLookupError:
+        except KeyError:
             # This happens when collective.xsendfile egg is in place
             # but add-on installer has not been run yet
             settings = None
