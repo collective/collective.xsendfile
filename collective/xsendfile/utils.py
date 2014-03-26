@@ -96,10 +96,10 @@ def set_xsendfile_header(request, response, blob):
                 fallback = True
 
     if fallback:
-        #logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), ))
+        # logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), ))
         return False
     else:
-        #logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path)))
+        # logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path)))
         response.setHeader(responseheader, file_path)
         return True
 

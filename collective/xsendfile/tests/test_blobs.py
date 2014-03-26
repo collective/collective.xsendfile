@@ -75,7 +75,8 @@ class IntegrationTestCase(unittest.TestCase):
         self.assertIsNotNone(xsendfile)
 
     def test_plone_namedfile_filename(self):
-        #@@download/fieldname/filename
+        """ @@download/fieldname/filename
+        """
 
         request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
@@ -90,8 +91,6 @@ class IntegrationTestCase(unittest.TestCase):
         self.assertIsNotNone(xsendfile)
 
     def test_substitute(self):
-        #@@download/fieldname/filename
-
         request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
         request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
@@ -107,8 +106,6 @@ class IntegrationTestCase(unittest.TestCase):
         self.assertIn('/xsendfile/', xsendfile)
 
     def test_fallback(self):
-        #@@download/fieldname/filename
-
         request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
         os.environ["XSENDFILE_ENABLE_FALLBACK"] = 'True'
