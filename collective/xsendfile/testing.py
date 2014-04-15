@@ -22,6 +22,8 @@ class TestLayer(PloneSandboxLayer):
 
         xmlconfig.file('configure.zcml', collective.xsendfile,
                        context=configurationContext)
+        import plone.app.registry
+        xmlconfig.file('configure.zcml', plone.app.registry, context=configurationContext)
 
     def tearDownZope(self, app):
         # Uninstall products installed above

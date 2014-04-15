@@ -2,6 +2,10 @@
 import os
 import unittest
 from ZPublisher.BaseRequest import DefaultPublishTraverse
+from plone.app.testing import applyProfile
+from plone.registry.interfaces import IRegistry
+from zope.component import getUtility
+from collective.xsendfile.interfaces import IxsendfileSettings
 from collective.xsendfile.testing import INTEGRATION_TESTING
 try:
     import plone.namedfile
@@ -43,7 +47,7 @@ class BlobTestCase(unittest.TestCase):
         self.assertEqual(content_type, 'image/gif')
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNotNone(xsendfile)
+        self.assertIsNot(xsendfile, None)
 
     def test_at_download(self):
         request = self.portal.REQUEST
@@ -54,7 +58,7 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNotNone(xsendfile)
+        self.assertIsNot(xsendfile, None)
 
     def test_substitute(self):
         request = self.portal.REQUEST
@@ -67,7 +71,7 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNotNone(xsendfile)
+        self.assertIsNot(xsendfile, None)
         self.assertIn('/xsendfile/', xsendfile)
 
     def test_fallback(self):
@@ -78,7 +82,32 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNone(xsendfile)
+        assert(xsendfile is None)
+
+    def test_not_configured(self):
+        request = self.portal.REQUEST
+        view = self.portal['file']
+        view.index_html(request, request.RESPONSE)
+
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        assert(xsendfile is None)
+
+    def test_registry(self):
+        request = self.portal.REQUEST
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        applyProfile(self.portal, 'plone.app.registry:default')
+        applyProfile(self.portal, 'collective.xsendfile:default')
+        registry = getUtility(IRegistry)
+        settings = registry.forInterface(IxsendfileSettings)
+        settings.xsendfile_responseheader = 'X-Sendfile'
+
+        view = self.portal['file']
+        view.index_html(request, request.RESPONSE)
+
+        xsendfile = request.RESPONSE.getHeader('X-Sendfile')
+        assert(xsendfile is not None)
+
 
 if HAS_NAMEDFILE:
     class NamedFileTestCase(unittest.TestCase):
