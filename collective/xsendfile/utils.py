@@ -11,14 +11,19 @@ from zope.component import getUtility
 from plone.registry.interfaces import IRegistry
 from Acquisition import aq_inner
 from zope.publisher.interfaces import NotFound
-from plone.namedfile.utils import set_headers
-from plone.namedfile.utils import stream_data
-from plone.namedfile.interfaces import IBlobby
 from zope.component import getMultiAdapter
 from z3c.form.interfaces import IDataManager
-
 from collective.xsendfile.interfaces import IxsendfileSettings
 
+
+
+try:
+    from plone.namedfile.utils import set_headers
+    from plone.namedfile.utils import stream_data
+    from plone.namedfile.interfaces import IBlobby
+    HAS_NAMEDFILE = True
+except:
+    HAS_NAMEDFILE = False
 
 logger = logging.getLogger('collective.xsendfile')
 
@@ -151,41 +156,42 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 # url similar to ../@@download/fieldname/filename
 #  and also used for ../context/@@display-file/fieldname/filename
 
+if HAS_NAMEDFILE:
 
-def monkeypatch_plone_namedfile_browser_Download__call__(self):
-    file = self._getFile()
-    self.set_headers(file)
-    if set_xsendfile_header(self.request, self.request.response, file):
-        return 'collective.xsendfile - proxy missing?'
-    else:
-        return stream_data(file)
+    def monkeypatch_plone_namedfile_browser_Download__call__(self):
+        file = self._getFile()
+        self.set_headers(file)
+        if set_xsendfile_header(self.request, self.request.response, file):
+            return 'collective.xsendfile - proxy missing?'
+        else:
+            return stream_data(file)
 
 
-def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
-    """ Patches to plone.formwidget.namedfile.widget.Download.__call__
-    """
-    if self.context.ignoreContext:
-        raise NotFound('Cannot get the data file from a widget with no context')
+    def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
+        """ Patches to plone.formwidget.namedfile.widget.Download.__call__
+        """
+        if self.context.ignoreContext:
+            raise NotFound('Cannot get the data file from a widget with no context')
 
-    if self.context.form is not None:
-        content = aq_inner(self.context.form.getContent())
-    else:
-        content = aq_inner(self.context.context)
-    field = aq_inner(self.context.field)
+        if self.context.form is not None:
+            content = aq_inner(self.context.form.getContent())
+        else:
+            content = aq_inner(self.context.context)
+        field = aq_inner(self.context.field)
 
-    dm = getMultiAdapter((content, field,), IDataManager)
-    file_ = dm.get()
-    if file_ is None:
-        raise NotFound(self, self.filename, self.request)
+        dm = getMultiAdapter((content, field,), IDataManager)
+        file_ = dm.get()
+        if file_ is None:
+            raise NotFound(self, self.filename, self.request)
 
-    if not self.filename:
-        self.filename = getattr(file_, 'filename', None)
+        if not self.filename:
+            self.filename = getattr(file_, 'filename', None)
 
-    set_headers(file_, self.request.response, filename=self.filename)
-    if set_xsendfile_header(self.request, self.request.response, file_):
-        return 'collective.xsendfile - proxy missing?'
-    else:
-        return stream_data(file_)
+        set_headers(file_, self.request.response, filename=self.filename)
+        if set_xsendfile_header(self.request, self.request.response, file_):
+            return 'collective.xsendfile - proxy missing?'
+        else:
+            return stream_data(file_)
 
 
 # TODO Patch plone.app.blob.scale.BlobImageScaleHandler

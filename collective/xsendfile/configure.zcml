@@ -35,20 +35,22 @@
             replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
             preserveOriginal="true"
             />
-    <monkey:patch
-            description="Add support for XSendfile"
-            class="plone.namedfile.browser.Download"
-            original="__call__"
-            replacement=".utils.monkeypatch_plone_namedfile_browser_Download__call__"
-            preserveOriginal="true"
-            />
-    <monkey:patch
-            description="Add support for XSendfile"
-            class="plone.formwidget.namedfile.widget.Download"
-            original="__call__"
-            replacement=".utils.monkeypatch_plone_formwidget_namedfile_widget_download__call__"
-            preserveOriginal="true"
-            />
+    <configure zcml:condition="installed plone.namedfile">
+        <monkey:patch
+                description="Add support for XSendfile"
+                class="plone.namedfile.browser.Download"
+                original="__call__"
+                replacement=".utils.monkeypatch_plone_namedfile_browser_Download__call__"
+                preserveOriginal="true"
+                />
+        <monkey:patch
+                description="Add support for XSendfile"
+                class="plone.formwidget.namedfile.widget.Download"
+                original="__call__"
+                replacement=".utils.monkeypatch_plone_formwidget_namedfile_widget_download__call__"
+                preserveOriginal="true"
+                />
+    </configure>
 
     <genericsetup:registerProfile
             name="default"
