@@ -15,8 +15,6 @@ from zope.component import getMultiAdapter
 from z3c.form.interfaces import IDataManager
 from collective.xsendfile.interfaces import IxsendfileSettings
 
-
-
 try:
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
@@ -60,12 +58,11 @@ def get_settings():
 
 
 def get_file(blob):
-    if IBlobby.providedBy(blob):
-        zodb_blob = blob._blob
-    elif IBlob.providedBy(blob):
+    if IBlob.providedBy(blob):
         zodb_blob = blob
     else:
         return False
+    # TODO: Must be a way to get the filename without opening the file
     blob_file = zodb_blob.open()
     file_path = blob_file.name
     blob_file.close()
@@ -157,15 +154,17 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 #  and also used for ../context/@@display-file/fieldname/filename
 
 if HAS_NAMEDFILE:
-
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         self.set_headers(file)
-        if set_xsendfile_header(self.request, self.request.response, file):
+        if IBlobby.providedBy(file):
+            zodb_blob = file._blob
+        else:
+            zodb_blob = file
+        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
             return 'collective.xsendfile - proxy missing?'
         else:
             return stream_data(file)
-
 
     def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
         """ Patches to plone.formwidget.namedfile.widget.Download.__call__
@@ -188,7 +187,11 @@ if HAS_NAMEDFILE:
             self.filename = getattr(file_, 'filename', None)
 
         set_headers(file_, self.request.response, filename=self.filename)
-        if set_xsendfile_header(self.request, self.request.response, file_):
+        if IBlobby.providedBy(file):
+            zodb_blob = file_._blob
+        else:
+            zodb_blob = file_
+        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
             return 'collective.xsendfile - proxy missing?'
         else:
             return stream_data(file_)
