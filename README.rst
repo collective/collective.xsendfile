@@ -1,4 +1,7 @@
-.. contents ::
+.. contents::
+
+.. image:: https://secure.travis-ci.org/collective/collective.xsendfile.png
+    :target: http://travis-ci.org/collective/collective.xsendfile
 
 Introduction
 ==============
@@ -40,8 +43,36 @@ Supported front-end web servers
 
 * Lighttpd
 
+Plone Compatibility
+===================
+
+Currently the following download urls are supported (Plone 4.0-4.3)
+
+* .../@@download/fieldname/filename
+
+* .../context/form/++widget++widgetname/@@download/filename
+
+* .../@@display-file/fieldname/filename
+
+* .../at_download
+
+* .../@images/image/index_html
+
+* direct url to ATFile and ATImage objects
+
+* direct url to plone.app.contenttypes File and Image objects
+
+Other urls will use the normal zope download mechanism.
+
+Currently image scales aren't handled as xsendfile even though they are stored as blobs.
+
 Installation
 ==============
+
+There are two ways to configure collective.xsendfile, either site by site, or globally per zope instance
+
+Per Site:
+~~~~~~~~~
 
 * Put collective.xsendfile to your buildout
 
@@ -52,10 +83,20 @@ Installation
   
 * In XSendFile Plone control panel, set HTTP header according to your server (Apache/Nginx)
 
-It is also possible to setup collective.xsendfile globablly for all your plone
-sites in a plone instance by using environment variables.
+Per Zope Instance:
+~~~~~~~~~~~~~~~~~~
 
-XSENDFILE_RESPONSEHEADER will activate global configuration. Set it to either
+It is also possible to setup collective.xsendfile globablly for all your plone
+sites in a plone instance by using environment variables. Note configuration this way
+will disable the ability to configure per site. There is no need to activate the plugin
+in your Plone instance for this to work.
+
+* Put collective.xsendfile to your buildout
+
+* configure you zope instance (probably via buildout) to include set the following environment variables
+
+XSENDFILE_RESPONSEHEADER will activate global configuration. Likely values are either
+  "X-Sendfile" (apache) or "X-Accel-Redirect" (nginx)
 
 
 XSENDFILE_ENABLE_FALLBACK True means if HTTP_X_FORWARDED_FOR isn't found in the request
@@ -230,6 +271,9 @@ mikko@mfabrik.com
 
 Jens W. Klein
 jens@bluedynamics.com
+
+Dylan Jay
+software@pretaweb.com
 
 Special thanks to Kapil Thangavelu, we extensively borrowed from his code ;-)
 

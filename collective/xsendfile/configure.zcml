@@ -1,40 +1,64 @@
 <configure
-    xmlns="http://namespaces.zope.org/zope"
-    xmlns:monkey="http://namespaces.plone.org/monkey"
-    xmlns:five="http://namespaces.zope.org/five"
-    xmlns:browser="http://namespaces.zope.org/browser"
-    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
-    xmlns:i18n="http://namespaces.zope.org/i18n"
-    i18n_domain="collective.xsendfile"
-    >
+        xmlns="http://namespaces.zope.org/zope"
+        xmlns:monkey="http://namespaces.plone.org/monkey"
+        xmlns:five="http://namespaces.zope.org/five"
+        xmlns:browser="http://namespaces.zope.org/browser"
+        xmlns:zcml="http://namespaces.zope.org/zcml"
+        xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+        i18n_domain="collective.xsendfile"
+        >
 
-  <five:registerPackage package="." initialize=".zope2.initialize" />
+    <five:registerPackage package="." initialize=".zope2.initialize"/>
 
-  <!-- Control panel -->
-  <include package="plone.registry" />
-  <include package="plone.app.registry" />
-  <browser:page
-      name="xsendfile-settings"
-      for="Products.CMFPlone.interfaces.IPloneSiteRoot"
-      class=".controlpanel.xsendfileSettingsControlPanel"
-      permission="cmf.ManagePortal"
-      />
+    <!-- Control panel -->
+    <include package="plone.registry"/>
+    <include package="plone.app.registry"/>
+    <browser:page
+            name="xsendfile-settings"
+            for="Products.CMFPlone.interfaces.IPloneSiteRoot"
+            class=".controlpanel.xsendfileSettingsControlPanel"
+            permission="cmf.ManagePortal"
+            />
 
-  <!-- Monkey patcher -->
-  <include package="collective.monkeypatcher" />
-  <monkey:patch
-      description="Add support for XSendfile"
-      class="plone.app.blob.field.BlobField"
-      original="index_html"
-      replacement=".utils.index_html"
-      />
+    <!-- Monkey patcher -->
+    <include package="collective.monkeypatcher"/>
+    <monkey:patch
+            description="Add support for XSendfile"
+            class="plone.app.blob.field.BlobWrapper"
+            original="index_html"
+            replacement=".utils.plone_app_blob_field_BlobWrapper_index_html"
+            preserveOriginal="true"
+            />
+    <monkey:patch
+            description="Add support for XSendfile"
+            class="plone.app.blob.field.BlobWrapper"
+            original="getIterator"
+            replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
+            preserveOriginal="true"
+            />
+    <configure zcml:condition="installed plone.namedfile">
+        <monkey:patch
+                description="Add support for XSendfile"
+                class="plone.namedfile.browser.Download"
+                original="__call__"
+                replacement=".utils.monkeypatch_plone_namedfile_browser_Download__call__"
+                preserveOriginal="true"
+                />
+        <monkey:patch
+                description="Add support for XSendfile"
+                class="plone.formwidget.namedfile.widget.Download"
+                original="__call__"
+                replacement=".utils.monkeypatch_plone_formwidget_namedfile_widget_download__call__"
+                preserveOriginal="true"
+                />
+    </configure>
 
-  <genericsetup:registerProfile
-      name="default"
-      title="XSendFile support"
-      directory="profiles/default"
-      description="Installs the collective.xsendfile package"
-      provides="Products.GenericSetup.interfaces.EXTENSION"
-      />
+    <genericsetup:registerProfile
+            name="default"
+            title="XSendFile support"
+            directory="profiles/default"
+            description="Installs the collective.xsendfile package"
+            provides="Products.GenericSetup.interfaces.EXTENSION"
+            />
 
 </configure>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <metadata>
-  <dependencies>
-    <dependency>profile-plone.app.registry:default</dependency>
-  </dependencies>
+    <dependencies>
+        <dependency>profile-plone.app.registry:default</dependency>
+    </dependencies>
 </metadata>
 
 
