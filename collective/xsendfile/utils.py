@@ -62,10 +62,7 @@ def get_file(blob):
         zodb_blob = blob
     else:
         return False
-    # TODO: Must be a way to get the filename without opening the file
-    blob_file = zodb_blob.open()
-    file_path = blob_file.name
-    blob_file.close()
+    file_path = zodb_blob.committed()
     return file_path
 
 
