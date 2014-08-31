@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-import os
-import unittest
 from ZPublisher.BaseRequest import DefaultPublishTraverse
+from collective.xsendfile.interfaces import IxsendfileSettings
+from collective.xsendfile.testing import INTEGRATION_TESTING
 from plone.app.testing import applyProfile
 from plone.registry.interfaces import IRegistry
 from zope.component import getUtility
-from collective.xsendfile.interfaces import IxsendfileSettings
-from collective.xsendfile.testing import INTEGRATION_TESTING
+
+import os
+import unittest
+
 try:
     import plone.namedfile
     plone.namedfile  # Just to fool flake8

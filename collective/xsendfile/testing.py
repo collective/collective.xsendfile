@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
+from plone.app.imaging.tests.utils import getData
 from plone.app.robotframework.testing import REMOTE_LIBRARY_BUNDLE_FIXTURE
 from plone.app.testing import FunctionalTesting
 from plone.app.testing import IntegrationTesting
 from plone.app.testing import PLONE_FIXTURE
 from plone.app.testing import PloneSandboxLayer
+from plone.app.testing import TEST_USER_ID
+from plone.app.testing import TEST_USER_NAME
+from plone.app.testing import login
+from plone.app.testing import setRoles
 from plone.testing.z2 import ZSERVER_FIXTURE
 from zope.configuration import xmlconfig
+
 import collective.xsendfile
-from plone.app.testing import setRoles
-from plone.app.testing import login
-from plone.app.testing import TEST_USER_NAME
-from plone.app.testing import TEST_USER_ID
-from plone.app.imaging.tests.utils import getData
 
 
 class TestLayer(PloneSandboxLayer):
