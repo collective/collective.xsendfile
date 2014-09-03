@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from zope import schema
-from zope.interface import Interface
 from zope.i18nmessageid import MessageFactory
-from zope.schema.vocabulary import SimpleVocabulary
+from zope.interface import Interface
 from zope.schema.vocabulary import SimpleTerm
+from zope.schema.vocabulary import SimpleVocabulary
 
 _ = MessageFactory('collective.xsendfile')
 http_response_headers = SimpleVocabulary(

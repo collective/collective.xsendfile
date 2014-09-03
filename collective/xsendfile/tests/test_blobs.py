@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-import os
-import unittest
 from ZPublisher.BaseRequest import DefaultPublishTraverse
+from collective.xsendfile.interfaces import IxsendfileSettings
+from collective.xsendfile.testing import INTEGRATION_TESTING
 from plone.app.testing import applyProfile
 from plone.registry.interfaces import IRegistry
 from zope.component import getUtility
-from collective.xsendfile.interfaces import IxsendfileSettings
-from collective.xsendfile.testing import INTEGRATION_TESTING
+
+import os
+import unittest
+
 try:
     import plone.namedfile
     plone.namedfile  # Just to fool flake8
@@ -15,12 +17,24 @@ except:
     HAS_NAMEDFILE = False
 
 
+def clean_env():
+    for e in ['XSENDFILE_RESPONSEHEADER',
+              'XSENDFILE_PATHREGEX_SEARCH',
+              'XSENDFILE_PATHREGEX_SUBSTITUTE',
+              'XSENDFILE_ENABLE_FALLBACK']:
+        if e in os.environ:
+            del os.environ[e]
+
+
 class BlobTestCase(unittest.TestCase):
     layer = INTEGRATION_TESTING
 
     def setUp(self):
         self.portal = self.layer['portal']
         self.request = self.layer['request']
+
+    def tearDown(self):
+        clean_env()
 
     def _traverse(self, path):
         pass
@@ -47,7 +61,7 @@ class BlobTestCase(unittest.TestCase):
         self.assertEqual(content_type, 'image/gif')
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertTrue(xsendfile is not None)
+        self.assertIsNotNone(xsendfile)
 
     def test_at_download(self):
         request = self.portal.REQUEST
@@ -92,6 +106,26 @@ class BlobTestCase(unittest.TestCase):
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
         self.assertTrue(xsendfile is None)
 
+    def test_plone_app_blob_image_not_configured(self):
+        request = self.portal.REQUEST
+        view = self.portal['image'].unrestrictedTraverse('@@images')
+        image = view.publishTraverse(request, 'image')
+
+        # Rewrap image scale to leave out the image class
+        # implementation. We do this to test the situation where we do
+        # not have class-supported publishing (e.g. with schema
+        # extension).
+        image = image.aq_base.__of__(self.portal)
+
+        adapter = DefaultPublishTraverse(image, request)
+        ob2 = adapter.publishTraverse(request, 'index_html')
+
+        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        ob2()
+        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        self.assertIsNone(xsendfile)
+
     def test_registry(self):
         request = self.portal.REQUEST
         request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
@@ -117,8 +151,11 @@ if HAS_NAMEDFILE:
             self.portal = self.layer['portal']
             self.request = self.layer['request']
 
+        def tearDown(self):
+            clean_env()
+
         def test_plone_namedfile(self):
-            """ @@download/fieldname/filename
+            """ @@download/fieldname
             """
 
             request = self.portal.REQUEST
