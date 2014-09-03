@@ -16,7 +16,6 @@ import os
 import re
 
 try:
-    from plone.namedfile.interfaces import IBlobby
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
     HAS_NAMEDFILE = True
