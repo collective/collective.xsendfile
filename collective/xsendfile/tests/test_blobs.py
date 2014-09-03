@@ -4,6 +4,7 @@ from collective.xsendfile.interfaces import IxsendfileSettings
 from collective.xsendfile.testing import INTEGRATION_TESTING
 from plone.app.testing import applyProfile
 from plone.registry.interfaces import IRegistry
+from unittest.util import safe_repr
 from zope.component import getUtility
 
 import os
@@ -26,7 +27,7 @@ def clean_env():
             del os.environ[e]
 
 
-class BlobTestCase(unittest.TestCase):
+class BaseTestCase(unittest.TestCase):
     layer = INTEGRATION_TESTING
 
     def setUp(self):
@@ -38,6 +39,21 @@ class BlobTestCase(unittest.TestCase):
 
     def _traverse(self, path):
         pass
+
+    def assertIsNone(self, obj, msg=None):
+        """Same as self.assertTrue(obj is None), with a nicer default message."""
+        if obj is not None:
+            standardMsg = '%s is not None' % (safe_repr(obj),)
+            self.fail(self._formatMessage(msg, standardMsg))
+
+    def assertIsNotNone(self, obj, msg=None):
+        """Included for symmetry with assertIsNone."""
+        if obj is None:
+            standardMsg = 'unexpectedly None'
+            self.fail(self._formatMessage(msg, standardMsg))
+
+
+class BlobTestCase(BaseTestCase):
 
     def test_plone_app_blob_image(self):
         request = self.portal.REQUEST
@@ -62,6 +78,7 @@ class BlobTestCase(unittest.TestCase):
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
         self.assertIsNotNone(xsendfile)
+        self.assertTrue(os.path.isfile(xsendfile))
 
     def test_at_download(self):
         request = self.portal.REQUEST
@@ -72,7 +89,8 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertTrue(xsendfile is not None)
+        self.assertIsNotNone(xsendfile)
+        self.assertTrue(os.path.isfile(xsendfile))
 
     def test_substitute(self):
         request = self.portal.REQUEST
@@ -96,7 +114,7 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertTrue(xsendfile is None)
+        self.assertIsNone(xsendfile)
 
     def test_not_configured(self):
         request = self.portal.REQUEST
@@ -104,7 +122,7 @@ class BlobTestCase(unittest.TestCase):
         view.index_html(request, request.RESPONSE)
 
         xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertTrue(xsendfile is None)
+        self.assertIsNone(xsendfile)
 
     def test_plone_app_blob_image_not_configured(self):
         request = self.portal.REQUEST
@@ -144,15 +162,7 @@ class BlobTestCase(unittest.TestCase):
 
 
 if HAS_NAMEDFILE:
-    class NamedFileTestCase(unittest.TestCase):
-        layer = INTEGRATION_TESTING
-
-        def setUp(self):
-            self.portal = self.layer['portal']
-            self.request = self.layer['request']
-
-        def tearDown(self):
-            clean_env()
+    class NamedFileTestCase(BaseTestCase):
 
         def test_plone_namedfile(self):
             """ @@download/fieldname
@@ -170,6 +180,7 @@ if HAS_NAMEDFILE:
 
             xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
             self.assertIsNotNone(xsendfile)
+            self.assertTrue(os.path.isfile(xsendfile))
 
         def test_plone_namedfile_filename(self):
             """ @@download/fieldname/filename
@@ -186,3 +197,4 @@ if HAS_NAMEDFILE:
 
             xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
             self.assertIsNotNone(xsendfile)
+            self.assertTrue(os.path.isfile(xsendfile))
