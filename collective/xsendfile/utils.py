@@ -2,20 +2,21 @@
 """
     XSendFile download support for BLOBs
 """
-import logging
-import re
-import os
-
-from ZODB.interfaces import IBlob
-from zope.component import getUtility
-from plone.registry.interfaces import IRegistry
 from Acquisition import aq_inner
-from zope.publisher.interfaces import NotFound
-from zope.component import getMultiAdapter
-from z3c.form.interfaces import IDataManager
+from ZODB.interfaces import IBlob
 from collective.xsendfile.interfaces import IxsendfileSettings
+from plone.registry.interfaces import IRegistry
+from z3c.form.interfaces import IDataManager
+from zope.component import getMultiAdapter
+from zope.component import getUtility
+from zope.publisher.interfaces import NotFound
+
+import logging
+import os
+import re
 
 try:
+    from plone.namedfile.interfaces import IBlobby
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
     HAS_NAMEDFILE = True

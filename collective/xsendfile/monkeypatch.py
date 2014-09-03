@@ -6,13 +6,13 @@
     http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions/6169177#6169177
 
 """
-
-import os
 from ZODB import utils
-from ZODB.blob import FilesystemHelper
 from ZODB.blob import BlobStorageMixin
+from ZODB.blob import FilesystemHelper
 from ZODB.blob import LAYOUT_MARKER
 from ZODB.blob import log
+
+import os
 
 
 class GroupReadableFilesystemHelper(FilesystemHelper):

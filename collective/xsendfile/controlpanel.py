@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-import os
-
-from plone.app.registry.browser import controlpanel
-
 from collective.xsendfile.interfaces import IxsendfileSettings
 from collective.xsendfile.interfaces import _
+from plone.app.registry.browser import controlpanel
 
+import os
 
 if 'XSENDFILE_RESPONSEHEADER' in os.environ:
     DESC = _(
