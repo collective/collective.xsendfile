@@ -127,7 +127,7 @@ Then include it in the buildout.cfg::
              src/collective.xsendfile        
 
 Plone 4.0 and older installation additions
-----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
              
 collective.xsendfile uses plone.app.registry.             
 You also might need to set up proper ``extends = `` like
