@@ -4,7 +4,6 @@ from collective.xsendfile.interfaces import IxsendfileSettings
 from collective.xsendfile.testing import INTEGRATION_TESTING
 from plone.app.testing import applyProfile
 from plone.registry.interfaces import IRegistry
-from unittest.util import safe_repr
 from zope.component import getUtility
 
 import os
@@ -40,17 +39,11 @@ class BaseTestCase(unittest.TestCase):
     def _traverse(self, path):
         pass
 
-    def assertIsNone(self, obj, msg=None):
-        """Same as self.assertTrue(obj is None), with a nicer default message."""
-        if obj is not None:
-            standardMsg = '%s is not None' % (safe_repr(obj),)
-            self.fail(self._formatMessage(msg, standardMsg))
+    def assertIsNone(self, obj):
+        self.assertTrue(obj is None)
 
-    def assertIsNotNone(self, obj, msg=None):
-        """Included for symmetry with assertIsNone."""
-        if obj is None:
-            standardMsg = 'unexpectedly None'
-            self.fail(self._formatMessage(msg, standardMsg))
+    def assertIsNotNone(self, obj):
+        self.assertTrue(obj is not None)
 
 
 class BlobTestCase(BaseTestCase):
