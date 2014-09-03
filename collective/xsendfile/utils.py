@@ -18,10 +18,14 @@ from collective.xsendfile.interfaces import IxsendfileSettings
 try:
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
-    from plone.namedfile.interfaces import IBlobby
     HAS_NAMEDFILE = True
 except:
     HAS_NAMEDFILE = False
+
+try:
+    from plone.namedfile.interfaces import IBlobby
+except:
+    IBlobby = None
 
 logger = logging.getLogger('collective.xsendfile')
 
@@ -77,13 +81,14 @@ def set_xsendfile_header(request, response, blob):
     #    blob = self.getUnwrapped(instance, raw=True)    # TODO: why 'raw'?
 
     settings = get_settings()
-    responseheader = settings.xsendfile_responseheader
-    pathregex_search = settings.xsendfile_pathregex_search
-    pathregex_substitute = settings.xsendfile_pathregex_substitute
-    enable_fallback = settings.xsendfile_enable_fallback
 
     fallback = True
     if settings is not None:
+        responseheader = settings.xsendfile_responseheader
+        pathregex_search = settings.xsendfile_pathregex_search
+        pathregex_substitute = settings.xsendfile_pathregex_substitute
+        enable_fallback = settings.xsendfile_enable_fallback
+
         file_path = get_file(blob)
 
         if responseheader and pathregex_substitute:
@@ -145,6 +150,7 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
     else:
         response = request.RESPONSE
     if set_xsendfile_header(request, response, self.blob):
+        # we have set XSENDFILE header, also send message in case proxy is missing
         return 'collective.xsendfile - proxy missing?'
     else:
         return self._old_getIterator(**kw)
@@ -157,7 +163,7 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         self.set_headers(file)
-        if IBlobby.providedBy(file):
+        if IBlobby is not None and IBlobby.providedBy(file):
             zodb_blob = file._blob
         else:
             zodb_blob = file

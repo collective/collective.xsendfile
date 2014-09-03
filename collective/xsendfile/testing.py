@@ -37,6 +37,9 @@ class TestLayer(PloneSandboxLayer):
         portal[portal.invokeFactory('Image', id='image', image=data)]
         portal[portal.invokeFactory('File', id='file', file=data)]
 
+    def tearDownPloneSite(self, portal):
+        pass
+
 
 FIXTURE = TestLayer()
 
