@@ -1,0 +1,7 @@
+include *
+
+recursive-include collective *
+
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .DS_Store
