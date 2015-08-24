@@ -88,7 +88,7 @@ def set_xsendfile_header(request, response, blob):
 
         file_path = get_file(blob)
 
-        if responseheader and pathregex_substitute:
+        if responseheader and pathregex_substitute and file_path:
             file_path = re.sub(pathregex_search, pathregex_substitute,
                                file_path)
         fallback = False
@@ -98,6 +98,8 @@ def set_xsendfile_header(request, response, blob):
         if enable_fallback:
             if (not request.get('HTTP_X_FORWARDED_FOR')):
                 fallback = True
+        if not file_path:
+            fallback = True
 
     if fallback:
         # logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), ))

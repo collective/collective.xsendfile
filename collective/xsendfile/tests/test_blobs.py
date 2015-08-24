@@ -160,7 +160,6 @@ if HAS_NAMEDFILE:
         def test_plone_namedfile(self):
             """ @@download/fieldname
             """
-
             request = self.portal.REQUEST
             os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
             request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
@@ -178,7 +177,6 @@ if HAS_NAMEDFILE:
         def test_plone_namedfile_filename(self):
             """ @@download/fieldname/filename
             """
-
             request = self.portal.REQUEST
             os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
             request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
