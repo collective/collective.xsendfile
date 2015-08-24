@@ -121,7 +121,7 @@ These instructions are for Github (trunk) version.
 Then include it in the buildout.cfg::
 
         eggs =
-             collective.xsenfile
+             collective.xsendfile
                 
         develop =
              src/collective.xsendfile        
