@@ -18,14 +18,12 @@ import re
 try:
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
+    from plone.namedfile.interfaces import INamedBlobFile
+    from plone.namedfile.interfaces import IBlobby
     HAS_NAMEDFILE = True
 except:
     HAS_NAMEDFILE = False
 
-try:
-    from plone.namedfile.interfaces import IBlobby
-except:
-    IBlobby = None
 
 logger = logging.getLogger('collective.xsendfile')
 
@@ -62,12 +60,19 @@ def get_settings():
 
 
 def get_file(blob):
-    if IBlob.providedBy(blob):
+    zodb_blob = None
+    if HAS_NAMEDFILE and INamedBlobFile.providedBy(blob) and hasattr(blob, '_blob'):
+        # HACK: uses internal knowledge but INamedBlobFile provides no way method
+        # to get to the underlying blob
+        zodb_blob = blob._blob
+    elif IBlob.providedBy(blob):
         zodb_blob = blob
-    else:
+
+    if zodb_blob is None:
         return False
-    file_path = zodb_blob.committed()
-    return file_path
+    else:
+        file_path = zodb_blob.committed()
+        return file_path
 
 
 def set_xsendfile_header(request, response, blob):
@@ -162,7 +167,7 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         self.set_headers(file)
-        if IBlobby is not None and IBlobby.providedBy(file):
+        if HAS_NAMEDFILE and IBlobby.providedBy(file):
             zodb_blob = file._blob
         else:
             zodb_blob = file

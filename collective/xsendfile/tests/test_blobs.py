@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-from ZPublisher.BaseRequest import DefaultPublishTraverse
-from collective.xsendfile.interfaces import IxsendfileSettings
-from collective.xsendfile.testing import INTEGRATION_TESTING
-from plone.app.testing import applyProfile
-from plone.registry.interfaces import IRegistry
-from zope.component import getUtility
 
 import os
 import unittest
+
+from collective.xsendfile.interfaces import IxsendfileSettings
+from collective.xsendfile.testing import INTEGRATION_TESTING
+from plone.registry.interfaces import IRegistry
+from zope.component import getUtility
+
+from ZPublisher.BaseRequest import DefaultPublishTraverse
+
+from plone.app.testing import applyProfile
+
 
 try:
     import plone.namedfile
@@ -155,6 +159,23 @@ class BlobTestCase(BaseTestCase):
 
 
 if HAS_NAMEDFILE:
+    # from zope.interface import implements
+    # from plone.dexterity.interfaces import IDexterityContent
+    # from plone.supermodel import model
+
+    # TODO: test wildcard.media style blobs
+    # class IVideo(model.Schema):
+    #
+    #    # main file will always be converted to mp4
+    #    video_file = namedfile.NamedBlobFile(
+    #        title=u"Test File",
+    #        description=u"",
+    #    )
+    #
+    # class Video(object):
+    #    implements(IVideo)
+    #    adapts(IDexterityContent)
+
     class NamedFileTestCase(BaseTestCase):
 
         def test_plone_namedfile(self):
