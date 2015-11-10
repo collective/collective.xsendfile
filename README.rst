@@ -10,25 +10,25 @@ collective.xsendfile
 Introduction
 ==============
 
-XSendFile is an enhancement over HTTP front end proxy protocol
-which allows offloading of file uploads and downloads to the front end web server.
+Offload ZODB BLOB download to front end web server using XSendfile/HTTP-Accel Headers.
+
+XSendFile is an enhancement over HTTP front end proxy protocol which allows offloading of file uploads and downloads to the front end web server.
 
 ``collective.xsendfile`` package adds XSendFile support for Plone.
 
-* Plone handles HTTP request publishing, permission checks, etc.
+- Plone handles HTTP request publishing, permission checks, etc.
   still normally
 
-* But instead of sending the file content over proxy connection Plone sends HTTP response with
+- But instead of sending the file content over proxy connection Plone sends HTTP response with
   special header telling the front end web server to read the file from the disk and
   send the file for the user
 
 .. note ::
 
-        Blob handling in ZODB is very effective already (async sockets, just like Apache or nginx would do ).
+        Blob handling in ZODB is very effective already (async sockets, just like Apache or nginx would do).
         Right after the headers are written to the response, the file gets handed over to the medusa async loop and the Zope thread is freed.
         This add-on only removes the need to proxy the file data over socket connection.
-        The overhead of this may depend on the use case, so you might want to run some
-        benchmarks before conclusion.
+        The overhead of this may depend on the use case, so you might want to run some benchmarks before conclusion.
 
 XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
