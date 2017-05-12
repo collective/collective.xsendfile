@@ -20,10 +20,14 @@ setup(
     classifiers=[
       "Programming Language :: Python",
       "Framework :: Plone",
+      "Framework :: Plone :: 4.3",
+      "Framework :: Plone :: 5.0",
+      "Framework :: Plone :: 5.1",
+
       ],
     keywords='',
-    author='Mikko Ohtamaa',
-    author_email='mikko@mfabrik.com',
+    author='BlueDynamics Alliance',
+    author_email='dev@bluedynamics.com',
     url='https://github.com/collective/collective.xsendfile',
     license='GPL',
     packages=find_packages(exclude=['ez_setup']),
@@ -33,6 +37,7 @@ setup(
     install_requires=[
         'setuptools',
         # -*- Extra requirements: -*-
+        'Plone',
         'collective.monkeypatcher',
         'plone.app.registry',
         'plone.registry',

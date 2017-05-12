@@ -1,0 +1,4 @@
+graft src/collective
+include *.rst
+global-exclude *.pyc
+global-exclude .DS_Store

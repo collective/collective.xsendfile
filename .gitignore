@@ -37,3 +37,4 @@ Gruntfile.js
 temp_resources
 pip-selfcheck.json
 dist
+/.Python
