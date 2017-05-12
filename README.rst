@@ -52,10 +52,8 @@ Supported front-end web servers
 
 * Lighttpd
 
-Plone Compatibility
-===================
-
-Currently the following download urls are supported (Plone 4.0-4.3)
+Supported download urls
+=======================
 
 * ``.../@@download/fieldname/filename``
 
@@ -65,7 +63,7 @@ Currently the following download urls are supported (Plone 4.0-4.3)
 
 * ``.../at_download``
 
-* ``.../@images/image/index_html``
+* ``.../@@images/image/index_html``
 
 * direct url to ATFile and ATImage objects
 
