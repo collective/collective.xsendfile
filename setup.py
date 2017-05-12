@@ -18,14 +18,14 @@ setup(
     # Get more strings from
     # http://pypi.python.org/pypi?:action=list_classifiers
     classifiers=[
-      "Programming Language :: Python",
-      "Framework :: Plone",
-      "Framework :: Plone :: 4.3",
-      "Framework :: Plone :: 5.0",
-      "Framework :: Plone :: 5.1",
+        'Programming Language :: Python',
+        'Framework :: Plone',
+        'Framework :: Plone :: 4.3',
+        'Framework :: Plone :: 5.0',
+        'Framework :: Plone :: 5.1',
 
-      ],
-    keywords='',
+    ],
+    keywords='sendfile httpaccel zodb blob',
     author='BlueDynamics Alliance',
     author_email='dev@bluedynamics.com',
     url='https://github.com/collective/collective.xsendfile',
@@ -39,9 +39,6 @@ setup(
         # -*- Extra requirements: -*-
         'Plone',
         'collective.monkeypatcher',
-        'plone.app.registry',
-        'plone.registry',
-        # 'z3c.form',
     ],
     extras_require={
         'test': [
