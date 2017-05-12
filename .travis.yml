@@ -1,39 +1,31 @@
 language: python
 sudo: false
 cache:
-  pip: true
   directories:
-    - $HOME/buildout-cache
+  - eggs
+  - downloads
 python:
   - 2.7
 env:
-  - PLONE_VERSION=4.2
   - PLONE_VERSION=4.3
   - PLONE_VERSION=5.0 QA=true
+  - PLONE_VERSION=5.1 QA=true
 matrix:
-  allow_failures:
-    - env: PLONE_VERSION=4.2
-before_install:
-  - mkdir -p $HOME/buildout-cache/{eggs,downloads}
-  - mkdir $HOME/.buildout
-  - echo "[buildout]" > $HOME/.buildout/default.cfg
-  - echo "download-cache = $HOME/buildout-cache/downloads" >> $HOME/.buildout/default.cfg
-  - echo "eggs-directory = $HOME/buildout-cache/eggs" >> $HOME/.buildout/default.cfg
-  - virtualenv .
-  - bin/pip install --upgrade pip setuptools zc.buildout coveralls
-  - export DISPLAY=:99.0
-  - sh -e /etc/init.d/xvfb start
+  fast_finish: true
 install:
-  - sed -ie "s#plone-4.3.x.cfg#plone-$PLONE_VERSION.x.cfg#" travis.cfg
-  - bin/buildout -N -t 3 -c travis.cfg
+  - bin/pip install -r requirements.txt
+  - bin/buildout -c plone-$PLONE_VERSION.x.cfg -N buildout:download-cache=downloads code-analysis:return-status-codes=True
+before_script:
+- export DISPLAY=:99.0
+- sh -e /etc/init.d/xvfb start
+- firefox -v
 script:
   - bin/code-analysis
   - bin/test --all
 after_success:
   - bin/createcoverage
-  - bin/python -m coverage.pickle2json
-  - bin/coveralls
+  - pip install coveralls
+  - coveralls
 notifications:
   email:
-    - jens@bluedynamics.com
-
+    - dev@bluedynamics.com
