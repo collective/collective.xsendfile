@@ -1,7 +1,4 @@
-include *
-
-recursive-include collective *
-
+graft src/collective
+include *.rst
 global-exclude *.pyc
-global-exclude *.pyo
 global-exclude .DS_Store
