@@ -13,8 +13,8 @@ env:
 matrix:
   fast_finish: true
 install:
-  - bin/pip install -r requirements.txt
-  - bin/buildout -c plone-$PLONE_VERSION.x.cfg -N buildout:download-cache=downloads code-analysis:return-status-codes=True
+  - pip install -r requirements.txt
+  - buildout -c plone-$PLONE_VERSION.x.cfg -N buildout:download-cache=downloads code-analysis:return-status-codes=True
 before_script:
 - export DISPLAY=:99.0
 - sh -e /etc/init.d/xvfb start
