@@ -7,6 +7,7 @@ from ZODB.interfaces import IBlob
 from collective.xsendfile.interfaces import IxsendfileSettings
 from plone.registry.interfaces import IRegistry
 from z3c.form.interfaces import IDataManager
+from zope.annotation.interfaces import IAnnotations
 from zope.component import getMultiAdapter
 from zope.component import getUtility
 from zope.publisher.interfaces import NotFound
@@ -24,6 +25,7 @@ try:
 except:
     HAS_NAMEDFILE = False
 
+XSENDFILE_DISABLED_KEY = 'collective.xsendfile.disabled'
 
 logger = logging.getLogger('collective.xsendfile')
 
@@ -75,12 +77,25 @@ def get_file(blob):
         return file_path
 
 
+def disable_xsendfile(request):
+    annotations = IAnnotations(request)
+    annotations[XSENDFILE_DISABLED_KEY] = True
+
+
+def xsendfile_is_disabled(request):
+    annotations = IAnnotations(request)
+    return annotations.get(XSENDFILE_DISABLED_KEY, False)
+
+
 def set_xsendfile_header(request, response, blob):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
     """
     #    blob = self.getUnwrapped(instance, raw=True)    # TODO: why 'raw'?
+
+    if xsendfile_is_disabled(request):
+        return False
 
     settings = get_settings()
 
