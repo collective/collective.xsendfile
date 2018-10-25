@@ -36,6 +36,27 @@
             replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
             preserveOriginal="true"
             />
+    <monkey:patch
+            description="Create blobstorage and internal folders/files with proper permissions for groups"
+            class="ZODB.blob.FilesystemHelper"
+            original="create"
+            replacement=".monkeypatch.FilesystemHelper_create"
+            preserveOriginal="true"
+            />
+    <monkey:patch
+            description="Create blobstorage and internal folders/files with proper permissions for groups"
+            class="ZODB.blob.FilesystemHelper"
+            original="isSecure"
+            replacement=".monkeypatch.FilesystemHelper_isSecure"
+            preserveOriginal="true"
+            />
+    <monkey:patch
+            description="Create blobstorage and internal folders/files with proper permissions for groups"
+            class="ZODB.blob.FilesystemHelper"
+            original="getPathForOID"
+            replacement=".monkeypatch.FilesystemHelper_getPathForOID"
+            preserveOriginal="true"
+            />
     <configure zcml:condition="installed plone.namedfile">
         <monkey:patch
                 description="Add support for XSendfile"
