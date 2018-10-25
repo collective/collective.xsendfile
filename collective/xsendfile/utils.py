@@ -4,6 +4,7 @@
 """
 from Acquisition import aq_inner
 from ZODB.interfaces import IBlob
+from ZODB.interfaces import BlobError
 from collective.xsendfile.interfaces import IxsendfileSettings
 from plone.registry.interfaces import IRegistry
 from z3c.form.interfaces import IDataManager
@@ -220,6 +221,28 @@ if HAS_NAMEDFILE:
             return 'collective.xsendfile - proxy missing?'
         else:
             return stream_data(file_)
+
+    def plone_namedfile_scaling_ImageScale_index_html(self):
+        """ download the image """
+        self.validate_access()
+        set_headers(self.data, self.request.response)
+        if IBlobby.providedBy(self.data):
+            zodb_blob = self.data._blob
+        else:
+            zodb_blob = self.data
+
+        try:
+            # The very first time a scale is requested, it is created, so a
+            # blob will not exist. So do not serve it with xsendfile until the
+            # transaction is commited.
+            zodb_blob.committed()
+        except BlobError:
+            return stream_data(self.data)
+
+        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
+            return 'collective.xsendfile - proxy missing?'
+        else:
+            return stream_data(self.data)
 
 
 # TODO Patch plone.app.blob.scale.BlobImageScaleHandler

@@ -51,6 +51,13 @@
                 replacement=".utils.monkeypatch_plone_formwidget_namedfile_widget_download__call__"
                 preserveOriginal="true"
                 />
+        <monkey:patch
+            description="Add support for XSendfile for image scales"
+            class="plone.namedfile.scaling.ImageScale"
+            original="index_html"
+            replacement=".utils.plone_namedfile_scaling_ImageScale_index_html"
+            preserveOriginal="true"
+            />
     </configure>
 
     <genericsetup:registerProfile
