@@ -2,3 +2,14 @@ graft src/collective
 include *.rst
 global-exclude *.pyc
 global-exclude .DS_Store
+include *.sh
+include *.txt
+include *.zcml
+include .coveragerc
+include base.cfg
+include plone-4.3.x.cfg
+include plone-5.0.x.cfg
+include plone-5.1.x.cfg
+include versions.cfg
+recursive-include collective *.xml
+recursive-include collective *.zcml
