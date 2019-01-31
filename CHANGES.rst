@@ -4,6 +4,9 @@ Changelog
 1.1 (unreleased)
 ----------------
 
+- Add suport for image scales
+  [frapell]
+
 - add function `disable_xsendfile` to disable x-sendfile via code
   [enfold]
 
