@@ -20,11 +20,11 @@ copied = logging.getLogger('ZODB.blob.copied').debug
 
 def FilesystemHelper_create(self):
     if not os.path.exists(self.base_dir):
-        os.makedirs(self.base_dir, 0750)
+        os.makedirs(self.base_dir, 0o750)
         log('Blob directory \'%s\' does not exist. '
             'Created new directory.' % self.base_dir)
     if not os.path.exists(self.temp_dir):
-        os.makedirs(self.temp_dir, 0750)
+        os.makedirs(self.temp_dir, 0o750)
         log('Blob temporary directory \'%s\' does not exist. '
             'Created new directory.' % self.temp_dir)
 
@@ -43,7 +43,7 @@ def FilesystemHelper_create(self):
 
 def FilesystemHelper_isSecure(self, path):
     """Ensure that (POSIX) path mode bits are 0750."""
-    return (os.stat(path).st_mode & 027) == 0
+    return (os.stat(path).st_mode & 0o27) == 0
 
 def FilesystemHelper_getPathForOID(self, oid, create=False):
     """Given an OID, return the path on the filesystem where
@@ -63,7 +63,7 @@ def FilesystemHelper_getPathForOID(self, oid, create=False):
 
     if create and not os.path.exists(path):
         try:
-            os.makedirs(path, 0750)
+            os.makedirs(path, 0o750)
         except OSError:
             # We might have lost a race.  If so, the directory
             # must exist now

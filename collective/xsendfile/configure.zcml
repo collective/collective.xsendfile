@@ -22,20 +22,22 @@
 
     <!-- Monkey patcher -->
     <include package="collective.monkeypatcher"/>
-    <monkey:patch
-            description="Add support for XSendfile"
-            class="plone.app.blob.field.BlobWrapper"
-            original="index_html"
-            replacement=".utils.plone_app_blob_field_BlobWrapper_index_html"
-            preserveOriginal="true"
-            />
-    <monkey:patch
-            description="Add support for XSendfile"
-            class="plone.app.blob.field.BlobWrapper"
-            original="getIterator"
-            replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
-            preserveOriginal="true"
-            />
+    <configure zcml:condition="installed plone.app.blob">
+      <monkey:patch
+              description="Add support for XSendfile"
+              class="plone.app.blob.field.BlobWrapper"
+              original="index_html"
+              replacement=".utils.plone_app_blob_field_BlobWrapper_index_html"
+              preserveOriginal="true"
+              />
+      <monkey:patch
+              description="Add support for XSendfile"
+              class="plone.app.blob.field.BlobWrapper"
+              original="getIterator"
+              replacement=".utils.plone_app_blob_field_BlobWrapper_getIterator"
+              preserveOriginal="true"
+              />
+    </configure>
     <monkey:patch
             description="Create blobstorage and internal folders/files with proper permissions for groups"
             class="ZODB.blob.FilesystemHelper"

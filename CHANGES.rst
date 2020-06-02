@@ -4,6 +4,9 @@ Changelog
 1.1 (unreleased)
 ----------------
 
+- Plone 5.2 / Python 3
+  [frapell]
+
 - Add suport for image scales
   [frapell]
 
