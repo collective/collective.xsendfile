@@ -214,7 +214,7 @@ if HAS_NAMEDFILE:
             self.filename = getattr(file_, 'filename', None)
 
         set_headers(file_, self.request.response, filename=self.filename)
-        if IBlobby.providedBy(file):
+        if IBlobby.providedBy(file_):
             zodb_blob = file_._blob
         else:
             zodb_blob = file_
