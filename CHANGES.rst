@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.1 (unreleased)
+1.2 (unreleased)
 ----------------
 
 - Plone 5.2 / Python 3
@@ -9,6 +9,10 @@ Changelog
 
 - Add suport for image scales
   [frapell]
+
+
+1.1 (2021-06-24)
+----------------
 
 - add function `disable_xsendfile` to disable x-sendfile via code
   [enfold]
