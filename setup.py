@@ -23,7 +23,11 @@ setup(
         'Framework :: Plone :: 4.3',
         'Framework :: Plone :: 5.0',
         'Framework :: Plone :: 5.1',
-
+        'Framework :: Plone :: 5.2',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'License :: OSI Approved :: GNU General Public License (GPL)',
+        'Development Status :: 5 - Production/Stable',
     ],
     keywords='sendfile httpaccel zodb blob',
     author='BlueDynamics Alliance',
