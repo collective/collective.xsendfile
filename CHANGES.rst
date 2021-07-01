@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2 (unreleased)
+1.2 (2021-07-01)
 ----------------
 
 - Plone 5.2 / Python 3
