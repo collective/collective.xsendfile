@@ -4,7 +4,8 @@ Changelog
 1.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Do not use binary mode for reading/writing the .layout
+  [frapell]
 
 
 1.2 (2021-07-01)

@@ -28,17 +28,17 @@ def FilesystemHelper_create(self):
         log('Blob temporary directory \'%s\' does not exist. '
             'Created new directory.' % self.temp_dir)
 
-    if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
-        layout_marker = open(
-            os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
-        layout_marker.write(self.layout_name)
+    layout_marker_path = os.path.join(self.base_dir, LAYOUT_MARKER)
+    if not os.path.exists(layout_marker_path):
+        with open(layout_marker_path, 'w') as layout_marker:
+            layout_marker.write(self.layout_name)
     else:
-        layout = open(
-            os.path.join(self.base_dir, LAYOUT_MARKER), 'rb').read().strip()
+        with open(layout_marker_path, 'r') as layout_marker:
+            layout = layout_marker.read().strip()
         if layout != self.layout_name:
             raise ValueError(
-                'Directory layout \`%s\` selected for blob directory %s, but '
-                'marker found for layout `%s`' %
+                "Directory layout `%s` selected for blob directory %s, but "
+                "marker found for layout `%s`" %
                 (self.layout_name, self.base_dir, layout))
 
 def FilesystemHelper_isSecure(self, path):
