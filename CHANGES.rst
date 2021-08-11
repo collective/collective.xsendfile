@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.3 (unreleased)
+1.3 (2021-08-11)
 ----------------
 
 - Do not use binary mode for reading/writing the .layout
