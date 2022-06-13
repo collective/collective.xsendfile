@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.4 (unreleased)
+1.4 (2022-06-13)
 ----------------
 
 - Log OSError on creating blob directory.
