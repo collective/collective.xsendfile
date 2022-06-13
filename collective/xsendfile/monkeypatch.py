@@ -15,7 +15,7 @@ import logging
 import os
 import stat
 
-copied = logging.getLogger('ZODB.blob.copied').debug
+logger = logging.getLogger(__name__)
 
 
 def FilesystemHelper_create(self):
@@ -67,6 +67,7 @@ def FilesystemHelper_getPathForOID(self, oid, create=False):
         except OSError:
             # We might have lost a race.  If so, the directory
             # must exist now
+            logger.exception('Error creating blob directory.')
             assert os.path.exists(path)
     return path
 
@@ -82,7 +83,7 @@ def rename_or_copy_blob(f1, f2, chmod=True):
     try:
         os.rename(f1, f2)
     except OSError:
-        copied("Copied blob file %r to %r.", f1, f2)
+        logger.debug("Copied blob file %r to %r.", f1, f2)
         file1 = open(f1, 'rb')
         file2 = open(f2, 'wb')
         try:

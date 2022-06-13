@@ -4,7 +4,9 @@ Changelog
 1.4 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Log OSError on creating blob directory.
+  [enfold]
+
 
 
 1.3 (2021-08-11)
