@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.5 (unreleased)
+----------------
+
+- Nothing changed yet.
+
+
 1.4 (2022-06-13)
 ----------------
 
