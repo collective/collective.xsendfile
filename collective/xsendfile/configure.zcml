@@ -44,6 +44,7 @@
             original="create"
             replacement=".monkeypatch.FilesystemHelper_create"
             preserveOriginal="true"
+            preconditions="ZODB-=5.2.1"
             />
     <monkey:patch
             description="Create blobstorage and internal folders/files with proper permissions for groups"
@@ -51,6 +52,7 @@
             original="isSecure"
             replacement=".monkeypatch.FilesystemHelper_isSecure"
             preserveOriginal="true"
+            preconditions="ZODB-=5.2.1"
             />
     <monkey:patch
             description="Create blobstorage and internal folders/files with proper permissions for groups"
@@ -58,6 +60,7 @@
             original="getPathForOID"
             replacement=".monkeypatch.FilesystemHelper_getPathForOID"
             preserveOriginal="true"
+            preconditions="ZODB-=5.2.1"
             />
     <configure zcml:condition="installed plone.namedfile">
         <monkey:patch

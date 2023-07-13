@@ -5,6 +5,9 @@
     which allows reading them by Apache.
     http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions/6169177#6169177
 
+    ZODB was changed in 5.2.2 to no longer set permissions. As such, these patches aren't needed on later versions.
+    https://github.com/zopefoundation/ZODB/commit/12eaf5cbc379257ed4b1ed7eece386329796b560
+
 """
 from ZODB import utils
 from ZODB import blob
@@ -95,5 +98,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
 
     os.chmod(f2, stat.S_IREAD | stat.S_IRGRP)
 
-
-blob.rename_or_copy_blob = rename_or_copy_blob
+import pkg_resources
+zodb_version = pkg_resources.Environment()['ZODB'][0].version
+if zodb_version < '5.2.2':
+    blob.rename_or_copy_blob = rename_or_copy_blob
+else:
+    logger.info('Not patching rename_or_copy_blob as ZODB >= 5.2.2')
