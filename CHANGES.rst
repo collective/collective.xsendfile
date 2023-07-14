@@ -4,7 +4,8 @@ Changelog
 1.5 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
+  [instification]
 
 
 1.4 (2022-06-13)
