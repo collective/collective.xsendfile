@@ -18,6 +18,12 @@ import os
 import re
 
 try:
+    from zodb_s3blobs.storage import S3BlobStorage
+    HAS_S3BLOBS = True
+except ImportError:
+    HAS_S3BLOBS = False
+
+try:
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
     from plone.namedfile.interfaces import INamedBlobFile
@@ -62,6 +68,43 @@ def get_settings():
     return None
 
 
+def _get_s3_url(zodb_blob):
+    """Return an internal redirect URI with a pre-signed S3 URL for nginx to proxy."""
+    jar = getattr(zodb_blob, '_p_jar', None)
+    if jar is None:
+        return None
+
+    storage = jar.db().storage
+    if not isinstance(storage, S3BlobStorage):
+        return None
+
+    oid = zodb_blob._p_oid
+    serial = zodb_blob._p_serial
+    if oid is None or serial is None:
+        return None
+
+    from ZODB.utils import oid_repr
+    from ZODB.utils import tid_repr
+    oid_hex = oid_repr(oid).removeprefix("0x").lstrip("0") or "0"
+    tid_hex = tid_repr(serial).removeprefix("0x").lstrip("0") or "0"
+    s3_key = "blobs/{}/{}.blob".format(oid_hex, tid_hex)
+
+    s3_client = storage._s3_client
+    full_key = s3_client._full_key(s3_key)
+    try:
+        presigned_url = s3_client._client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': s3_client.bucket_name, 'Key': full_key},
+            ExpiresIn=60,
+        )
+    except Exception:
+        logger.exception("Failed to generate pre-signed S3 URL for %s", full_key)
+        return None
+
+    from urllib.parse import quote
+    return "/s3-internal/{}".format(quote(presigned_url, safe=''))
+
+
 def get_file(blob):
     zodb_blob = None
     if HAS_NAMEDFILE and INamedBlobFile.providedBy(blob) and hasattr(blob, '_blob'):
@@ -73,9 +116,14 @@ def get_file(blob):
 
     if zodb_blob is None:
         return False
-    else:
-        file_path = zodb_blob.committed()
-        return file_path
+
+    if HAS_S3BLOBS:
+        s3_url = _get_s3_url(zodb_blob)
+        if s3_url is not None:
+            return s3_url
+
+    file_path = zodb_blob.committed()
+    return file_path
 
 
 def disable_xsendfile(request):

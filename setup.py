@@ -49,6 +49,9 @@ setup(
             'plone.app.testing',
             'plone.app.robotframework'
         ],
+        's3blobs': [
+            's3client'
+        ]
     },
     entry_points="""
     # -*- Entry points: -*-
