@@ -206,10 +206,16 @@ def set_xsendfile_header(request, response, blob):
 
     storage_info = _resolve_s3_blob_storage(zodb_blob)
     if storage_info is not None:
-        return _set_s3_xsendfile_header(
+        logger.info('xsendfile: routing via S3 (path=%s)', path)
+        ok = _set_s3_xsendfile_header(
             request, response, zodb_blob, storage_info, settings,
         )
-    return _set_local_xsendfile_header(request, response, blob, settings)
+        logger.info('xsendfile S3 header set=%s (path=%s)', ok, path)
+        return ok
+    logger.info('xsendfile: routing via local-disk (path=%s)', path)
+    ok = _set_local_xsendfile_header(request, response, blob, settings)
+    logger.info('xsendfile local header set=%s (path=%s)', ok, path)
+    return ok
 
 
 # Patches to plone.app.blob.field.BlobWrapper
