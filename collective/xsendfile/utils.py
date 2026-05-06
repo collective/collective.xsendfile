@@ -23,6 +23,31 @@ try:
 except ImportError:
     HAS_S3BLOBS = False
 
+
+def _resolve_s3_blob_storage(zodb_blob):
+    """Return (storage, s3_client) if the blob's ZODB storage is an
+    S3BlobStorage, else None. Import-guarded so environments without
+    zodb-s3blobs installed continue to work.
+
+    Prefers the Connection's MVCC instance of the storage (``jar._storage``)
+    over ``db.storage``. ZODB's ``DB.open()`` calls ``new_instance()`` on the
+    storage for each connection; S3BlobStorage keeps pending/staged state on
+    the per-connection instance, so the primary may not reflect what the
+    current transaction sees.
+    """
+    if not HAS_S3BLOBS:
+        return None
+    jar = getattr(zodb_blob, '_p_jar', None)
+    if jar is None:
+        return None
+    storage = getattr(jar, '_storage', None)
+    if storage is None:
+        db = jar.db()
+        storage = db.storage if db is not None else None
+    if not isinstance(storage, S3BlobStorage):
+        return None
+    return storage, storage._s3_client
+
 try:
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
@@ -68,40 +93,6 @@ def get_settings():
     return None
 
 
-def _get_s3_presigned_url(zodb_blob):
-    """Return a raw pre-signed S3 URL for the blob, or None if not on S3."""
-    jar = getattr(zodb_blob, '_p_jar', None)
-    if jar is None:
-        return None
-
-    storage = jar.db().storage
-    if not isinstance(storage, S3BlobStorage):
-        return None
-
-    oid = zodb_blob._p_oid
-    serial = zodb_blob._p_serial
-    if oid is None or serial is None:
-        return None
-
-    from ZODB.utils import oid_repr
-    from ZODB.utils import tid_repr
-    oid_hex = oid_repr(oid).removeprefix("0x").lstrip("0") or "0"
-    tid_hex = tid_repr(serial).removeprefix("0x").lstrip("0") or "0"
-    s3_key = "blobs/{}/{}.blob".format(oid_hex, tid_hex)
-
-    s3_client = storage._s3_client
-    full_key = s3_client._full_key(s3_key)
-    try:
-        return s3_client._client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': s3_client.bucket_name, 'Key': full_key},
-            ExpiresIn=60,
-        )
-    except Exception:
-        logger.exception("Failed to generate pre-signed S3 URL for %s", full_key)
-        return None
-
-
 def _get_zodb_blob(blob):
     if HAS_NAMEDFILE and INamedBlobFile.providedBy(blob) and hasattr(blob, '_blob'):
         # HACK: uses internal knowledge but INamedBlobFile provides no way method
@@ -129,63 +120,96 @@ def xsendfile_is_disabled(request):
     return annotations.get(XSENDFILE_DISABLED_KEY, False)
 
 
+def _proxy_preconditions_ok(request, settings):
+    """Common preconditions for any xsendfile path.
+
+    Returns True if the front-end proxy is configured and the request looks
+    like it really came through one. False means the caller should fall back
+    to streaming via Zope.
+    """
+    if not settings.xsendfile_responseheader:
+        logger.warn('No front end web server type selected')
+        return False
+    if settings.xsendfile_enable_fallback and not request.get('HTTP_X_FORWARDED_FOR'):
+        return False
+    return True
+
+
+def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info, settings):
+    """Emit xsendfile headers for a blob backed by S3BlobStorage.
+
+    Routes via nginx's /s3-internal/ location; the presigned URL is passed
+    out-of-band in X-S3-Url so nginx can use it verbatim in proxy_pass
+    without URI-encoding mangling the query string signature.
+    """
+    storage, s3_client = storage_info
+    oid = zodb_blob._p_oid
+    serial = zodb_blob._p_serial
+    if oid is None or serial is None:
+        return False
+
+    from ZODB.utils import oid_repr
+    from ZODB.utils import tid_repr
+    oid_hex = oid_repr(oid).removeprefix("0x").lstrip("0") or "0"
+    tid_hex = tid_repr(serial).removeprefix("0x").lstrip("0") or "0"
+    s3_key = "blobs/{}/{}.blob".format(oid_hex, tid_hex)
+    full_key = s3_client._full_key(s3_key)
+
+    try:
+        presigned_url = s3_client._client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': s3_client.bucket_name, 'Key': full_key},
+            ExpiresIn=60,
+        )
+    except Exception:
+        logger.exception("Failed to generate pre-signed S3 URL for %s", full_key)
+        return False
+
+    response.setHeader('X-S3-Url', presigned_url)
+    response.setHeader(settings.xsendfile_responseheader, '/s3-internal/')
+    return True
+
+
+def _set_local_xsendfile_header(request, response, blob, settings):
+    """Emit xsendfile headers for a blob backed by local-disk storage."""
+    file_path = get_file(blob)
+    if not file_path:
+        return False
+    if settings.xsendfile_pathregex_substitute:
+        file_path = re.sub(
+            settings.xsendfile_pathregex_search,
+            settings.xsendfile_pathregex_substitute,
+            file_path,
+        )
+    response.setHeader(settings.xsendfile_responseheader, file_path)
+    return True
+
+
 def set_xsendfile_header(request, response, blob):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
     """
-    #    blob = self.getUnwrapped(instance, raw=True)    # TODO: why 'raw'?
-
     if xsendfile_is_disabled(request):
         return False
 
     settings = get_settings()
-
-    fallback = True
-    s3_presigned_url = None
-    if settings is not None:
-        responseheader = settings.xsendfile_responseheader
-        pathregex_search = settings.xsendfile_pathregex_search
-        pathregex_substitute = settings.xsendfile_pathregex_substitute
-        enable_fallback = settings.xsendfile_enable_fallback
-
-        file_path = None
-        if HAS_S3BLOBS:
-            zodb_blob = _get_zodb_blob(blob)
-            if zodb_blob is not None:
-                s3_presigned_url = _get_s3_presigned_url(zodb_blob)
-                if s3_presigned_url is not None:
-                    # Route via nginx's /s3-internal/ location; the presigned
-                    # URL is passed out-of-band in X-S3-Url so nginx can use it
-                    # verbatim in proxy_pass without URI-encoding mangling the
-                    # query string signature.
-                    file_path = '/s3-internal/'
-
-        if file_path is None:
-            file_path = get_file(blob)
-            if responseheader and pathregex_substitute and file_path:
-                file_path = re.sub(pathregex_search, pathregex_substitute,
-                                   file_path)
-
-        fallback = False
-        if not responseheader:
-            fallback = True
-            logger.warn('No front end web server type selected')
-        if enable_fallback:
-            if (not request.get('HTTP_X_FORWARDED_FOR')):
-                fallback = True
-        if not file_path:
-            fallback = True
-
-    if fallback:
-        # logger.warn("Falling back to sending object %s.%s via Zope"%(repr(instance),repr(self), ))
+    if settings is None:
         return False
-    else:
-        # logger.debug("Sending object %s.%s with xsendfile header %s, path: %s"%(repr(instance), repr(self), repr(responseheader), repr(file_path)))
-        if s3_presigned_url is not None:
-            response.setHeader('X-S3-Url', s3_presigned_url)
-        response.setHeader(responseheader, file_path)
-        return True
+
+    if not _proxy_preconditions_ok(request, settings):
+        return False
+
+    zodb_blob = _get_zodb_blob(blob)
+    if zodb_blob is None:
+        return False
+
+    storage_info = _resolve_s3_blob_storage(zodb_blob)
+    if storage_info is not None:
+        return _set_s3_xsendfile_header(
+            request, response, zodb_blob, storage_info, settings,
+        )
+    return _set_local_xsendfile_header(request, response, blob, settings)
 
 
 # Patches to plone.app.blob.field.BlobWrapper
