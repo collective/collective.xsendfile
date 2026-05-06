@@ -190,6 +190,7 @@ def set_xsendfile_header(request, response, blob):
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
     """
+    path = request.get('PATH_INFO', '?')
     if xsendfile_is_disabled(request):
         return False
 
