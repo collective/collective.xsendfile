@@ -4,7 +4,6 @@
 """
 from Acquisition import aq_inner
 from ZODB.interfaces import IBlob
-from ZODB.interfaces import BlobError
 from collective.xsendfile.interfaces import IxsendfileSettings
 from plone.registry.interfaces import IRegistry
 from z3c.form.interfaces import IDataManager
@@ -49,13 +48,44 @@ def _resolve_s3_blob_storage(zodb_blob):
     return storage, storage._s3_client
 
 try:
+    from plone.namedfile.utils import get_contenttype
     from plone.namedfile.utils import set_headers
     from plone.namedfile.utils import stream_data
     from plone.namedfile.interfaces import INamedBlobFile
     from plone.namedfile.interfaces import IBlobby
+    from urllib.parse import quote as _urlquote
     HAS_NAMEDFILE = True
 except:
     HAS_NAMEDFILE = False
+
+
+def set_headers_no_length(file, response, filename=None, canonical=None):
+    """Like plone.namedfile.utils.set_headers but never calls file.getSize().
+
+    For NamedBlobFiles whose ``size`` attribute isn't cached on the instance,
+    ``getSize()`` opens the blob — which on S3BlobStorage downloads the whole
+    object to a temp file just to learn its byte length. When we're routing
+    via xsendfile, the upstream response (nginx -> S3) already provides
+    Content-Length, so we skip setting it here.
+    """
+    size_cached = isinstance(getattr(file, '__dict__', None), dict) \
+        and 'size' in file.__dict__
+    contenttype = get_contenttype(file)
+    response.setHeader("Content-Type", contenttype)
+    response.setHeader("Accept-Ranges", "bytes")
+
+    if filename is not None:
+        if not isinstance(filename, str):
+            filename = str(filename, "utf-8", errors="ignore")
+        filename = _urlquote(filename.encode("utf8"))
+        response.setHeader(
+            "Content-Disposition", f"attachment; filename*=UTF-8''{filename}"
+        )
+
+    if canonical is not None:
+        response.setHeader(
+            "Link", f'<{_urlquote(canonical, safe="/:&?=@")}>; rel="canonical"'
+        )
 
 XSENDFILE_DISABLED_KEY = 'collective.xsendfile.disabled'
 
@@ -128,9 +158,19 @@ def _proxy_preconditions_ok(request, settings):
     to streaming via Zope.
     """
     if not settings.xsendfile_responseheader:
-        logger.warn('No front end web server type selected')
+        logger.warning(
+            'xsendfile precondition FAIL: xsendfile_responseheader is unset '
+            '(settings=%r). Configure @@xsendfile-settings or set '
+            'XSENDFILE_RESPONSEHEADER env var.', settings,
+        )
         return False
     if settings.xsendfile_enable_fallback and not request.get('HTTP_X_FORWARDED_FOR'):
+        logger.warning(
+            'xsendfile precondition FAIL: enable_fallback=True and request '
+            'has no HTTP_X_FORWARDED_FOR (path=%s). Request did not come '
+            'through a front-end proxy, or proxy is not setting the header.',
+            request.get('PATH_INFO', '?'),
+        )
         return False
     return True
 
@@ -141,28 +181,24 @@ def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info, setting
     Routes via nginx's /s3-internal/ location; the presigned URL is passed
     out-of-band in X-S3-Url so nginx can use it verbatim in proxy_pass
     without URI-encoding mangling the query string signature.
+
+    Relies on the Connection.setstate patch installed by zodb_s3blobs to
+    avoid downloading on Blob unghost; ``loadBlob`` itself remains eager
+    (so the streaming fallback path still works as before).
     """
-    storage, s3_client = storage_info
+    storage, _s3_client = storage_info
     oid = zodb_blob._p_oid
     serial = zodb_blob._p_serial
     if oid is None or serial is None:
         return False
 
-    from ZODB.utils import oid_repr
-    from ZODB.utils import tid_repr
-    oid_hex = oid_repr(oid).removeprefix("0x").lstrip("0") or "0"
-    tid_hex = tid_repr(serial).removeprefix("0x").lstrip("0") or "0"
-    s3_key = "blobs/{}/{}.blob".format(oid_hex, tid_hex)
-    full_key = s3_client._full_key(s3_key)
-
-    try:
-        presigned_url = s3_client._client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': s3_client.bucket_name, 'Key': full_key},
-            ExpiresIn=60,
+    presigned_url = storage.xsendfile_presigned_url(oid, serial, expires=60)
+    if presigned_url is None:
+        logger.warning(
+            'xsendfile S3 SKIP: storage.xsendfile_presigned_url returned '
+            'None (oid=%r serial=%r) — blob likely pending or S3 error',
+            oid, serial,
         )
-    except Exception:
-        logger.exception("Failed to generate pre-signed S3 URL for %s", full_key)
         return False
 
     response.setHeader('X-S3-Url', presigned_url)
@@ -196,6 +232,11 @@ def set_xsendfile_header(request, response, blob):
 
     settings = get_settings()
     if settings is None:
+        logger.warning(
+            'xsendfile SKIP: get_settings() returned None — registry record '
+            'missing (add-on profile not installed?) and no XSENDFILE_* env '
+            'vars set (path=%s)', path,
+        )
         return False
 
     if not _proxy_preconditions_ok(request, settings):
@@ -203,6 +244,10 @@ def set_xsendfile_header(request, response, blob):
 
     zodb_blob = _get_zodb_blob(blob)
     if zodb_blob is None:
+        logger.warning(
+            'xsendfile SKIP: _get_zodb_blob returned None for blob=%r '
+            '(path=%s)', blob, path,
+        )
         return False
 
     storage_info = _resolve_s3_blob_storage(zodb_blob)
@@ -271,15 +316,25 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
-            self.set_headers(file)
             if HAS_NAMEDFILE and IBlobby.providedBy(file):
                 zodb_blob = file._blob
             else:
                 zodb_blob = file
-            if set_xsendfile_header(self.request, self.request.response, zodb_blob):
+            response = self.request.response
+            if set_xsendfile_header(self.request, response, zodb_blob):
+                # Avoid self.set_headers(file): it calls file.getSize() which
+                # on S3-backed blobs without a cached size opens the blob and
+                # downloads it — exactly what xsendfile is trying to avoid.
+                # Replicate just the bits we need; nginx/S3 sets Content-Length.
+                from plone.namedfile.browser import DisplayFile
+                filename = None
+                if not isinstance(self, DisplayFile):
+                    filename = self.filename or getattr(file, 'filename', None) \
+                        or self.fieldname or 'file.ext'
+                set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
-            else:
-                return stream_data(file)
+            self.set_headers(file)
+            return stream_data(file)
 
     def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
         """ Patches to plone.formwidget.namedfile.widget.Download.__call__
@@ -301,37 +356,45 @@ if HAS_NAMEDFILE:
         if not self.filename:
             self.filename = getattr(file_, 'filename', None)
 
-        set_headers(file_, self.request.response, filename=self.filename)
         if IBlobby.providedBy(file_):
             zodb_blob = file_._blob
         else:
             zodb_blob = file_
-        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
+        response = self.request.response
+        if set_xsendfile_header(self.request, response, zodb_blob):
+            set_headers_no_length(file_, response, filename=self.filename)
             return 'collective.xsendfile - proxy missing?'
-        else:
-            return stream_data(file_)
+        set_headers(file_, response, filename=self.filename)
+        return stream_data(file_)
 
     def plone_namedfile_scaling_ImageScale_index_html(self):
         """ download the image """
         self.validate_access()
-        set_headers(self.data, self.request.response)
         if IBlobby.providedBy(self.data):
             zodb_blob = self.data._blob
         else:
             zodb_blob = self.data
 
-        try:
-            # The very first time a scale is requested, it is created, so a
-            # blob will not exist. So do not serve it with xsendfile until the
-            # transaction is commited.
-            zodb_blob.committed()
-        except BlobError:
+        # Check committed-ness without calling Blob.committed(): that
+        # method explicitly calls storage.loadBlob() for its "let storage
+        # know" side-effect, which on S3 would download the entire blob.
+        # Replicate the BlobError condition inline using only attribute
+        # access (cheap after the lazy setstate patch unghosts the Blob).
+        from ZODB.blob import SAVEPOINT_SUFFIX
+        committed_path = getattr(zodb_blob, '_p_blob_committed', None)
+        uncommitted = getattr(zodb_blob, '_p_blob_uncommitted', None)
+        if (uncommitted
+                or not committed_path
+                or committed_path.endswith(SAVEPOINT_SUFFIX)):
+            set_headers(self.data, self.request.response)
             return stream_data(self.data)
 
-        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
+        response = self.request.response
+        if set_xsendfile_header(self.request, response, zodb_blob):
+            set_headers_no_length(self.data, response)
             return 'collective.xsendfile - proxy missing?'
-        else:
-            return stream_data(self.data)
+        set_headers(self.data, response)
+        return stream_data(self.data)
 
 
 # TODO Patch plone.app.blob.scale.BlobImageScaleHandler
