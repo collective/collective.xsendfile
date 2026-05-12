@@ -158,14 +158,14 @@ def _proxy_preconditions_ok(request, settings):
     to streaming via Zope.
     """
     if not settings.xsendfile_responseheader:
-        logger.warning(
+        logger.debug(
             'xsendfile precondition FAIL: xsendfile_responseheader is unset '
             '(settings=%r). Configure @@xsendfile-settings or set '
             'XSENDFILE_RESPONSEHEADER env var.', settings,
         )
         return False
     if settings.xsendfile_enable_fallback and not request.get('HTTP_X_FORWARDED_FOR'):
-        logger.warning(
+        logger.debug(
             'xsendfile precondition FAIL: enable_fallback=True and request '
             'has no HTTP_X_FORWARDED_FOR (path=%s). Request did not come '
             'through a front-end proxy, or proxy is not setting the header.',
@@ -252,15 +252,13 @@ def set_xsendfile_header(request, response, blob):
 
     storage_info = _resolve_s3_blob_storage(zodb_blob)
     if storage_info is not None:
-        logger.info('xsendfile: routing via S3 (path=%s)', path)
         ok = _set_s3_xsendfile_header(
             request, response, zodb_blob, storage_info, settings,
         )
-        logger.info('xsendfile S3 header set=%s (path=%s)', ok, path)
+        logger.debug('xsendfile: route=s3 set=%s path=%s', ok, path)
         return ok
-    logger.info('xsendfile: routing via local-disk (path=%s)', path)
     ok = _set_local_xsendfile_header(request, response, blob, settings)
-    logger.info('xsendfile local header set=%s (path=%s)', ok, path)
+    logger.debug('xsendfile: route=local set=%s path=%s', ok, path)
     return ok
 
 
