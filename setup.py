@@ -24,8 +24,13 @@ setup(
         'Framework :: Plone :: 5.0',
         'Framework :: Plone :: 5.1',
         'Framework :: Plone :: 5.2',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
+        'Framework :: Plone :: 6.0',
+        'Framework :: Plone :: 6.1',
+        'Framework :: Plone :: 6.2',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'License :: OSI Approved :: GNU General Public License (GPL)',
         'Development Status :: 5 - Production/Stable',
     ],
@@ -35,7 +40,6 @@ setup(
     url='https://github.com/collective/collective.xsendfile',
     license='GPL',
     packages=find_packages(exclude=['ez_setup']),
-    namespace_packages=['collective'],
     include_package_data=True,
     zip_safe=False,
     install_requires=[
@@ -47,7 +51,13 @@ setup(
     extras_require={
         'test': [
             'plone.app.testing',
-            'plone.app.robotframework'
+            'plone.app.robotframework',
+            'coverage',
+        ],
+        'lint': [
+            'flake8',
+            'black',
+            'zpretty',
         ],
     },
     entry_points="""
