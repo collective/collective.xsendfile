@@ -6,7 +6,7 @@ Changelog
 
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
   [instification]
-
+- Support Python 3 & Plone >= 5.2 [frapell, instification]
 
 1.4 (2022-06-13)
 ----------------
