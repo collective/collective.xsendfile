@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from setuptools import find_packages
+from setuptools import find_namespace_packages
 from setuptools import setup
 
 
@@ -39,7 +39,7 @@ setup(
     author_email='dev@bluedynamics.com',
     url='https://github.com/collective/collective.xsendfile',
     license='GPL',
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_namespace_packages(exclude=['ez_setup']),
     include_package_data=True,
     zip_safe=False,
     install_requires=[
@@ -64,5 +64,8 @@ setup(
     # -*- Entry points: -*-
     [z3c.autoinclude.plugin]
     target = plone
+    [plone.autoinclude.plugin]
+    target = plone
+    module = collective.xsendfile
     """,
     )
