@@ -175,12 +175,19 @@ def _proxy_preconditions_ok(request, settings):
     return True
 
 
-def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info, settings):
+def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info,
+                             settings, file=None, disposition='inline'):
     """Emit xsendfile headers for a blob backed by S3BlobStorage.
 
     Routes via nginx's /s3-internal/ location; the presigned URL is passed
     out-of-band in X-S3-Url so nginx can use it verbatim in proxy_pass
     without URI-encoding mangling the query string signature.
+
+    ``file`` is the owning NamedBlob/Image (or similar) whose
+    ``contentType`` and ``filename`` are forwarded into the presigned URL
+    as response-content-type / response-content-disposition. Blobs are
+    uploaded to S3 without metadata, so without this override S3 would
+    serve them as ``binary/octet-stream``.
 
     Relies on the Connection.setstate patch installed by zodb_s3blobs to
     avoid downloading on Blob unghost; ``loadBlob`` itself remains eager
@@ -192,7 +199,19 @@ def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info, setting
     if oid is None or serial is None:
         return False
 
-    presigned_url = storage.xsendfile_presigned_url(oid, serial, expires=60)
+    content_type = None
+    filename = None
+    if file is not None:
+        content_type = get_contenttype(file) if HAS_NAMEDFILE else \
+            getattr(file, 'contentType', None) or \
+            getattr(file, 'content_type', None)
+        filename = getattr(file, 'filename', None)
+
+    presigned_url = storage.xsendfile_presigned_url(
+        oid, serial, expires=60,
+        content_type=content_type, filename=filename,
+        disposition=disposition,
+    )
     if presigned_url is None:
         logger.warning(
             'xsendfile S3 SKIP: storage.xsendfile_presigned_url returned '
@@ -221,10 +240,15 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
-def set_xsendfile_header(request, response, blob):
+def set_xsendfile_header(request, response, blob, file=None,
+                         disposition='inline'):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
+
+        ``file`` is the owning NamedBlob/Image (when distinct from
+        ``blob``); used on the S3 path to override S3's stored
+        Content-Type and Content-Disposition via signed query params.
     """
     path = request.get('PATH_INFO', '?')
     if xsendfile_is_disabled(request):
@@ -254,6 +278,8 @@ def set_xsendfile_header(request, response, blob):
     if storage_info is not None:
         ok = _set_s3_xsendfile_header(
             request, response, zodb_blob, storage_info, settings,
+            file=file if file is not None else blob,
+            disposition=disposition,
         )
         logger.debug('xsendfile: route=s3 set=%s path=%s', ok, path)
         return ok
@@ -300,7 +326,7 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
         response = self._v_RESPONSE
     else:
         response = request.RESPONSE
-    if set_xsendfile_header(request, response, self.blob):
+    if set_xsendfile_header(request, response, self.blob, file=self):
         # we have set XSENDFILE header, also send message in case proxy is missing
         return 'collective.xsendfile - proxy missing?'
     else:
@@ -319,16 +345,19 @@ if HAS_NAMEDFILE:
             else:
                 zodb_blob = file
             response = self.request.response
-            if set_xsendfile_header(self.request, response, zodb_blob):
+            from plone.namedfile.browser import DisplayFile
+            filename = None
+            if not isinstance(self, DisplayFile):
+                filename = self.filename or getattr(file, 'filename', None) \
+                    or self.fieldname or 'file.ext'
+            # Inline for DisplayFile (image previews), attachment for downloads.
+            disposition = 'inline' if isinstance(self, DisplayFile) else 'attachment'
+            if set_xsendfile_header(self.request, response, zodb_blob,
+                                    file=file, disposition=disposition):
                 # Avoid self.set_headers(file): it calls file.getSize() which
                 # on S3-backed blobs without a cached size opens the blob and
                 # downloads it — exactly what xsendfile is trying to avoid.
                 # Replicate just the bits we need; nginx/S3 sets Content-Length.
-                from plone.namedfile.browser import DisplayFile
-                filename = None
-                if not isinstance(self, DisplayFile):
-                    filename = self.filename or getattr(file, 'filename', None) \
-                        or self.fieldname or 'file.ext'
                 set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
             self.set_headers(file)
@@ -359,7 +388,8 @@ if HAS_NAMEDFILE:
         else:
             zodb_blob = file_
         response = self.request.response
-        if set_xsendfile_header(self.request, response, zodb_blob):
+        if set_xsendfile_header(self.request, response, zodb_blob,
+                                file=file_, disposition='attachment'):
             set_headers_no_length(file_, response, filename=self.filename)
             return 'collective.xsendfile - proxy missing?'
         set_headers(file_, response, filename=self.filename)
@@ -388,7 +418,8 @@ if HAS_NAMEDFILE:
             return stream_data(self.data)
 
         response = self.request.response
-        if set_xsendfile_header(self.request, response, zodb_blob):
+        if set_xsendfile_header(self.request, response, zodb_blob,
+                                file=self.data, disposition='inline'):
             set_headers_no_length(self.data, response)
             return 'collective.xsendfile - proxy missing?'
         set_headers(self.data, response)
