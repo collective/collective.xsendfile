@@ -59,9 +59,16 @@ setup(
             'black',
             'zpretty',
         ],
+        # Optional S3 blob delivery support. Not pulled in by the base
+        # package: install via ``collective.xsendfile[s3blobs]``. Bundles the
+        # runtime dependency (zodb-s3blobs) together with the tooling its test
+        # layer needs (moto for a mock S3, relstorage[sqlite3] as an in-process
+        # storage that exposes the commit TID the way production's does).
         's3blobs': [
-            's3client'
-        ]
+            'zodb-s3blobs',
+            'moto[s3]',
+            'relstorage[sqlite3]',
+        ],
     },
     entry_points="""
     # -*- Entry points: -*-
