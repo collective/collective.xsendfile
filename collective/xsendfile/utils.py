@@ -403,23 +403,26 @@ if HAS_NAMEDFILE:
         else:
             zodb_blob = self.data
 
-        # Check committed-ness without calling Blob.committed(): that
-        # method explicitly calls storage.loadBlob() for its "let storage
-        # know" side-effect, which on S3 would download the entire blob.
-        # Replicate the BlobError condition inline using only attribute
-        # access (cheap after the lazy setstate patch unghosts the Blob).
-        from ZODB.blob import SAVEPOINT_SUFFIX
-        committed_path = getattr(zodb_blob, '_p_blob_committed', None)
-        uncommitted = getattr(zodb_blob, '_p_blob_uncommitted', None)
-        if (uncommitted
-                or not committed_path
-                or committed_path.endswith(SAVEPOINT_SUFFIX)):
-            set_headers(self.data, self.request.response)
-            return stream_data(self.data)
-
+        # Mirror the Download.__call__ patch: hand the blob straight to
+        # set_xsendfile_header and let it decide. This deliberately drops the
+        # earlier _p_blob_committed guard, which checked for a *local*
+        # committed file path. On S3BlobStorage a committed blob has no local
+        # path (the lazy setstate patch avoids downloading it), so that guard
+        # tripped on every S3-backed scale and streamed the bytes through Zope
+        # instead of delegating — the exact thing xsendfile exists to avoid.
+        #
+        # The guard's stated purpose (not calling Blob.committed(), which
+        # downloads on S3) is already satisfied here: on the S3 path
+        # set_xsendfile_header presigns from the blob's oid/serial without
+        # opening it, and returns False for a genuinely uncommitted/pending
+        # blob (oid or serial is None) so we fall back to streaming — which is
+        # correct for an on-the-fly scale that hasn't been committed yet.
         response = self.request.response
         if set_xsendfile_header(self.request, response, zodb_blob,
                                 file=self.data, disposition='inline'):
+            # Avoid set_headers(self.data): it calls getSize() which on an
+            # S3-backed blob without a cached size opens (downloads) the blob.
+            # nginx/S3 supplies Content-Length instead.
             set_headers_no_length(self.data, response)
             return 'collective.xsendfile - proxy missing?'
         set_headers(self.data, response)
