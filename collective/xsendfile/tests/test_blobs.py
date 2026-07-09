@@ -1,24 +1,11 @@
-# -*- coding: utf-8 -*-
-
 import os
 import unittest
 
 from collective.xsendfile.interfaces import IxsendfileSettings
 from collective.xsendfile.testing import INTEGRATION_TESTING
+from plone.app.testing import applyProfile
 from plone.registry.interfaces import IRegistry
 from zope.component import getUtility
-
-from ZPublisher.BaseRequest import DefaultPublishTraverse
-
-from plone.app.testing import applyProfile
-
-
-try:
-    import plone.namedfile
-    plone.namedfile  # Just to fool flake8
-    HAS_NAMEDFILE = True
-except:
-    HAS_NAMEDFILE = False
 
 
 def clean_env():
@@ -40,110 +27,82 @@ class BaseTestCase(unittest.TestCase):
     def tearDown(self):
         clean_env()
 
-    def _traverse(self, path):
-        pass
-
-    def assertIsNone(self, obj):
-        self.assertTrue(obj is None)
-
-    def assertIsNotNone(self, obj):
-        self.assertTrue(obj is not None)
+    def _download(self, content_id='file', field='file'):
+        view = self.portal[content_id].unrestrictedTraverse('@@download')
+        field_view = view.publishTraverse(self.request, field)
+        field_view()
+        return self.request.RESPONSE
 
 
-class BlobTestCase(BaseTestCase):
+class DownloadTestCase(BaseTestCase):
 
-    def test_plone_app_blob_image(self):
-        request = self.portal.REQUEST
-        view = self.portal['image'].unrestrictedTraverse('@@images')
-        image = view.publishTraverse(request, 'image')
-
-        # Rewrap image scale to leave out the image class
-        # implementation. We do this to test the situation where we do
-        # not have class-supported publishing (e.g. with schema
-        # extension).
-        image = image.aq_base.__of__(self.portal)
-
-        adapter = DefaultPublishTraverse(image, request)
-        ob2 = adapter.publishTraverse(request, 'index_html')
-
+    def test_download(self):
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
-        ob2()
-        content_type = request.RESPONSE.getHeader('content-type')
-        self.assertEqual(content_type, 'image/gif')
-
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        response = self._download()
+        xsendfile = response.getHeader('X-SENDFILE')
         self.assertIsNotNone(xsendfile)
         self.assertTrue(os.path.isfile(xsendfile))
 
-    def test_at_download(self):
-        request = self.portal.REQUEST
+    def test_download_with_filename(self):
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
-        view = self.portal['file']
-        view.index_html(request, request.RESPONSE)
+        view = self.portal['file'].unrestrictedTraverse('@@download')
+        field_view = view.publishTraverse(self.request, 'file')
+        filename = field_view.publishTraverse(self.request, 'image.gif')
+        filename()
 
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
+        xsendfile = self.request.RESPONSE.getHeader('X-SENDFILE')
         self.assertIsNotNone(xsendfile)
         self.assertTrue(os.path.isfile(xsendfile))
 
     def test_substitute(self):
-        request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
         os.environ['XSENDFILE_PATHREGEX_SEARCH'] = r'(.*)'
         os.environ['XSENDFILE_PATHREGEX_SUBSTITUTE'] = r'/xsendfile/\1'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
-        view = self.portal['file']
-        view.index_html(request, request.RESPONSE)
-
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertTrue(xsendfile is not None)
-        self.assertTrue('/xsendfile/' in xsendfile)
+        response = self._download()
+        xsendfile = response.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+        self.assertIn('/xsendfile/', xsendfile)
 
     def test_fallback(self):
-        request = self.portal.REQUEST
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-        os.environ["XSENDFILE_ENABLE_FALLBACK"] = 'True'
-        view = self.portal['file']
-        view.index_html(request, request.RESPONSE)
+        os.environ['XSENDFILE_ENABLE_FALLBACK'] = 'True'
 
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNone(xsendfile)
+        response = self._download()
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
 
     def test_not_configured(self):
-        request = self.portal.REQUEST
-        view = self.portal['file']
-        view.index_html(request, request.RESPONSE)
+        response = self._download()
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
 
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNone(xsendfile)
+    def _image_scale(self):
+        scales = self.portal['image'].unrestrictedTraverse('@@images')
+        scale = scales.publishTraverse(self.request, 'image')
+        scale.index_html()
+        return self.request.RESPONSE
 
-    def test_plone_app_blob_image_not_configured(self):
-        request = self.portal.REQUEST
-        view = self.portal['image'].unrestrictedTraverse('@@images')
-        image = view.publishTraverse(request, 'image')
+    def test_image_scale(self):
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
-        # Rewrap image scale to leave out the image class
-        # implementation. We do this to test the situation where we do
-        # not have class-supported publishing (e.g. with schema
-        # extension).
-        image = image.aq_base.__of__(self.portal)
+        response = self._image_scale()
+        xsendfile = response.getHeader('X-SENDFILE')
+        self.assertIsNotNone(xsendfile)
+        self.assertTrue(os.path.isfile(xsendfile))
 
-        adapter = DefaultPublishTraverse(image, request)
-        ob2 = adapter.publishTraverse(request, 'index_html')
+    def test_image_scale_not_configured(self):
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
-        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
-
-        ob2()
-        xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-        self.assertIsNone(xsendfile)
+        response = self._image_scale()
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
 
     def test_registry(self):
-        request = self.portal.REQUEST
-        request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
         applyProfile(self.portal, 'plone.app.registry:default')
         applyProfile(self.portal, 'collective.xsendfile:default')
@@ -151,62 +110,5 @@ class BlobTestCase(BaseTestCase):
         settings = registry.forInterface(IxsendfileSettings)
         settings.xsendfile_responseheader = 'X-Sendfile'
 
-        view = self.portal['file']
-        view.index_html(request, request.RESPONSE)
-
-        xsendfile = request.RESPONSE.getHeader('X-Sendfile')
-        self.assertTrue(xsendfile is not None)
-
-
-if HAS_NAMEDFILE:
-    # from zope.interface import implements
-    # from plone.dexterity.interfaces import IDexterityContent
-    # from plone.supermodel import model
-
-    # TODO: test wildcard.media style blobs
-    # class IVideo(model.Schema):
-    #
-    #    # main file will always be converted to mp4
-    #    video_file = namedfile.NamedBlobFile(
-    #        title=u"Test File",
-    #        description=u"",
-    #    )
-    #
-    # class Video(object):
-    #    implements(IVideo)
-    #    adapts(IDexterityContent)
-
-    class NamedFileTestCase(BaseTestCase):
-
-        def test_plone_namedfile(self):
-            """ @@download/fieldname
-            """
-            request = self.portal.REQUEST
-            os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-            request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
-            xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-            self.assertIsNone(xsendfile)
-
-            view = self.portal['file'].unrestrictedTraverse('@@download')
-            file = view.publishTraverse(request, 'file')
-            file()
-
-            xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-            self.assertIsNotNone(xsendfile)
-            self.assertTrue(os.path.isfile(xsendfile))
-
-        def test_plone_namedfile_filename(self):
-            """ @@download/fieldname/filename
-            """
-            request = self.portal.REQUEST
-            os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
-            request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
-
-            view = self.portal['file'].unrestrictedTraverse('@@download')
-            file = view.publishTraverse(request, 'file')
-            filename = file.publishTraverse(request, 'filename')
-            filename()
-
-            xsendfile = request.RESPONSE.getHeader('X-SENDFILE')
-            self.assertIsNotNone(xsendfile)
-            self.assertTrue(os.path.isfile(xsendfile))
+        response = self._download()
+        self.assertIsNotNone(response.getHeader('X-Sendfile'))
