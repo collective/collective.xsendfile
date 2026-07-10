@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: base
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Plone with Python
+        uses: plone/setup-plone@v2.0.0
+        with:
+          python-version: "3.12"
+          plone-version: "6.1.4"
+
+      - name: Install package
+        run: |
+          pip install -e ".[test]"
+          # Several Plone dependencies still import pkg_resources at runtime.
+          pip install "setuptools<81"
+
+      - name: Run tests
+        # Invoke via `python -m` so it does not depend on the zope-testrunner
+        # console script being on PATH.
+        run: python -m zope.testrunner --test-path=. -m collective.xsendfile
