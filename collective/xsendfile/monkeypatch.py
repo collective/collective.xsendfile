@@ -5,6 +5,9 @@
     which allows reading them by Apache.
     http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions/6169177#6169177
 
+    ZODB was changed in 5.2.2 to no longer set permissions. As such, these patches aren't needed on later versions.
+    https://github.com/zopefoundation/ZODB/commit/12eaf5cbc379257ed4b1ed7eece386329796b560
+
 """
 from ZODB import utils
 from ZODB import blob
@@ -15,35 +18,35 @@ import logging
 import os
 import stat
 
-copied = logging.getLogger('ZODB.blob.copied').debug
+logger = logging.getLogger(__name__)
 
 
 def FilesystemHelper_create(self):
     if not os.path.exists(self.base_dir):
-        os.makedirs(self.base_dir, 0750)
+        os.makedirs(self.base_dir, 0o750)
         log('Blob directory \'%s\' does not exist. '
             'Created new directory.' % self.base_dir)
     if not os.path.exists(self.temp_dir):
-        os.makedirs(self.temp_dir, 0750)
+        os.makedirs(self.temp_dir, 0o750)
         log('Blob temporary directory \'%s\' does not exist. '
             'Created new directory.' % self.temp_dir)
 
-    if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
-        layout_marker = open(
-            os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
-        layout_marker.write(self.layout_name)
+    layout_marker_path = os.path.join(self.base_dir, LAYOUT_MARKER)
+    if not os.path.exists(layout_marker_path):
+        with open(layout_marker_path, 'w') as layout_marker:
+            layout_marker.write(self.layout_name)
     else:
-        layout = open(
-            os.path.join(self.base_dir, LAYOUT_MARKER), 'rb').read().strip()
+        with open(layout_marker_path, 'r') as layout_marker:
+            layout = layout_marker.read().strip()
         if layout != self.layout_name:
             raise ValueError(
-                'Directory layout \`%s\` selected for blob directory %s, but '
-                'marker found for layout `%s`' %
+                "Directory layout `%s` selected for blob directory %s, but "
+                "marker found for layout `%s`" %
                 (self.layout_name, self.base_dir, layout))
 
 def FilesystemHelper_isSecure(self, path):
     """Ensure that (POSIX) path mode bits are 0750."""
-    return (os.stat(path).st_mode & 027) == 0
+    return (os.stat(path).st_mode & 0o27) == 0
 
 def FilesystemHelper_getPathForOID(self, oid, create=False):
     """Given an OID, return the path on the filesystem where
@@ -63,10 +66,11 @@ def FilesystemHelper_getPathForOID(self, oid, create=False):
 
     if create and not os.path.exists(path):
         try:
-            os.makedirs(path, 0750)
+            os.makedirs(path, 0o750)
         except OSError:
             # We might have lost a race.  If so, the directory
             # must exist now
+            logger.exception('Error creating blob directory.')
             assert os.path.exists(path)
     return path
 
@@ -82,7 +86,7 @@ def rename_or_copy_blob(f1, f2, chmod=True):
     try:
         os.rename(f1, f2)
     except OSError:
-        copied("Copied blob file %r to %r.", f1, f2)
+        logger.debug("Copied blob file %r to %r.", f1, f2)
         file1 = open(f1, 'rb')
         file2 = open(f2, 'wb')
         try:
@@ -94,5 +98,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
 
     os.chmod(f2, stat.S_IREAD | stat.S_IRGRP)
 
-
-blob.rename_or_copy_blob = rename_or_copy_blob
+import pkg_resources
+zodb_version = pkg_resources.Environment()['ZODB'][0].version
+if zodb_version < '5.2.2':
+    blob.rename_or_copy_blob = rename_or_copy_blob
+else:
+    logger.info('Not patching rename_or_copy_blob as ZODB >= 5.2.2')

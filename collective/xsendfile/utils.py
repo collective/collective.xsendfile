@@ -182,15 +182,16 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
-        self.set_headers(file)
-        if HAS_NAMEDFILE and IBlobby.providedBy(file):
-            zodb_blob = file._blob
-        else:
-            zodb_blob = file
-        if set_xsendfile_header(self.request, self.request.response, zodb_blob):
-            return 'collective.xsendfile - proxy missing?'
-        else:
-            return stream_data(file)
+        if file:
+            self.set_headers(file)
+            if HAS_NAMEDFILE and IBlobby.providedBy(file):
+                zodb_blob = file._blob
+            else:
+                zodb_blob = file
+            if set_xsendfile_header(self.request, self.request.response, zodb_blob):
+                return 'collective.xsendfile - proxy missing?'
+            else:
+                return stream_data(file)
 
     def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
         """ Patches to plone.formwidget.namedfile.widget.Download.__call__
@@ -213,7 +214,7 @@ if HAS_NAMEDFILE:
             self.filename = getattr(file_, 'filename', None)
 
         set_headers(file_, self.request.response, filename=self.filename)
-        if IBlobby.providedBy(file):
+        if IBlobby.providedBy(file_):
             zodb_blob = file_._blob
         else:
             zodb_blob = file_
