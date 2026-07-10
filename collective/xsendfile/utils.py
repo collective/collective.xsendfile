@@ -3,6 +3,7 @@
     XSendFile download support for BLOBs
 """
 from Acquisition import aq_inner
+from ZODB.interfaces import BlobError
 from ZODB.interfaces import IBlob
 from collective.xsendfile.interfaces import IxsendfileSettings
 from plone.registry.interfaces import IRegistry
@@ -137,7 +138,14 @@ def get_file(blob):
     zodb_blob = _get_zodb_blob(blob)
     if zodb_blob is None:
         return False
-    return zodb_blob.committed()
+    try:
+        return zodb_blob.committed()
+    except BlobError:
+        # An on-the-fly generated scale is uncommitted while the generating
+        # request is still running, so committed() raises "Uncommitted
+        # changes". Return False so the caller falls back to streaming rather
+        # than propagating a 500.
+        return False
 
 
 def disable_xsendfile(request):
