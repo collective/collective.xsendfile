@@ -7,8 +7,26 @@ on:
 
 jobs:
   test:
-    name: base
+    # Two runs: the base package, and the optional [s3blobs] delivery path.
+    # The S3-backed tests (tests/test_s3blobs.py) skip themselves unless the
+    # [s3blobs] extra is installed, so the base run exercises everything else
+    # while the s3blobs run additionally covers the moto/RelStorage S3 layer.
+    #
+    # NOTE: the s3blobs run currently fails against the published zodb-s3blobs,
+    # which lacks the MVCCAdapter/IMVCCStorage fix the S3 delegation path needs
+    # (jar._storage is an MVCCAdapterInstance, so _resolve_s3_blob_storage
+    # cannot see the S3BlobStorage). That is intentional: the red run signals
+    # the S3 path is not ready until that fix is released upstream.
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: base
+            extras: test
+          - name: s3blobs
+            extras: test,s3blobs
 
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +37,9 @@ jobs:
           python-version: "3.12"
           plone-version: "6.1.4"
 
-      - name: Install package
+      - name: Install package (${{ matrix.extras }})
         run: |
-          pip install -e ".[test]"
+          pip install -e ".[${{ matrix.extras }}]"
           # Several Plone dependencies still import pkg_resources at runtime.
           pip install "setuptools<81"
 
