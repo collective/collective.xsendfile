@@ -17,11 +17,13 @@ jobs:
     # (jar._storage is an MVCCAdapterInstance, so _resolve_s3_blob_storage
     # cannot see the S3BlobStorage). That is intentional: the red run signals
     # the S3 path is not ready until that fix is released upstream.
-    name: ${{ matrix.name }}
+    name: ${{ matrix.name }} (Plone ${{ matrix.plone-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        plone-version: ["6.1.5", "6.2.2"]
+        name: [base, s3blobs]
         include:
           - name: base
             extras: test
@@ -35,7 +37,7 @@ jobs:
         uses: plone/setup-plone@v2.0.0
         with:
           python-version: "3.12"
-          plone-version: "6.1.4"
+          plone-version: ${{ matrix.plone-version }}
 
       - name: Install package (${{ matrix.extras }})
         run: |
