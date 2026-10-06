@@ -13,7 +13,9 @@ from ZODB import utils
 from ZODB import blob
 from ZODB.blob import LAYOUT_MARKER
 from ZODB.blob import log
+from importlib.metadata import version as distribution_version
 
+import itertools
 import logging
 import os
 import stat
@@ -98,9 +100,18 @@ def rename_or_copy_blob(f1, f2, chmod=True):
 
     os.chmod(f2, stat.S_IREAD | stat.S_IRGRP)
 
-import pkg_resources
-zodb_version = pkg_resources.Environment()['ZODB'][0].version
-if zodb_version < '5.2.2':
+
+def _version_tuple(version):
+    parts = []
+    for part in version.split('.'):
+        digits = ''.join(itertools.takewhile(str.isdigit, part))
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts)
+
+
+if _version_tuple(distribution_version('ZODB')) < (5, 2, 2):
     blob.rename_or_copy_blob = rename_or_copy_blob
 else:
     logger.info('Not patching rename_or_copy_blob as ZODB >= 5.2.2')

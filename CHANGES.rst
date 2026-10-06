@@ -4,6 +4,10 @@ Changelog
 1.5 (unreleased)
 ----------------
 
+- Plone 6.2 support: read the ZODB version with ``importlib.metadata``
+  instead of ``pkg_resources`` (removed in setuptools 82), drop the
+  ``setuptools`` runtime dependency, and test against Plone 6.1 and 6.2.
+  [instification]
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
   [instification]
 - Support Python 3 & Plone >= 5.2 [frapell, instification]
