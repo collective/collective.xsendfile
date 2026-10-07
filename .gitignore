@@ -37,4 +37,6 @@ Gruntfile.js
 temp_resources
 pip-selfcheck.json
 dist
+build/
+.venv/
 /.Python

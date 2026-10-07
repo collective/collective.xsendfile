@@ -1,9 +1,16 @@
 Changelog
 =========
 
-1.5 (unreleased)
-----------------
+2.0.0 (unreleased)
+------------------
 
+- Breaking: require Python 3.10 or later. Plone 6.0, 6.1 and 6.2 are
+  supported; Python 2 and Plone 4.3 to 5.2 are no longer supported.
+  [instification]
+- Switch to semantic versioning and prepare for release on PyPI: add
+  ``python_requires`` and accurate classifiers, fix ``MANIFEST.in``,
+  remove buildout and Travis CI leftovers, and test against Plone 6.0 too.
+  [instification]
 - Add support for Plone 6.2
   [instification]
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2

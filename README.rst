@@ -1,8 +1,5 @@
-.. image:: https://secure.travis-ci.org/collective/collective.xsendfile.png
-    :target: http://travis-ci.org/collective/collective.xsendfile
-
-.. image:: https://coveralls.io/repos/collective/collective.xsendfile/badge.svg?branch=master&service=github
-    :target: https://coveralls.io/github/collective/collective.xsendfile?branch=master
+.. image:: https://github.com/collective/collective.xsendfile/actions/workflows/tests.yml/badge.svg?branch=master
+    :target: https://github.com/collective/collective.xsendfile/actions/workflows/tests.yml
 
 .. This README is meant for consumption by humans and pypi. Pypi can render rst files so please do not use Sphinx features.
    If you want to learn more about writing documentation, please check out: http://docs.plone.org/about/documentation_styleguide_addons.html
@@ -43,6 +40,12 @@ XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
 
         This work is still unfinished as `ZODB lacks one crucial feature regarding permissions <http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions>`_
 
+Compatibility
+=============
+
+Version 2.x supports Plone 6.0, 6.1 and 6.2 on Python 3.10 or later.
+Use the 1.x releases for older Plone and Python versions.
+
 Supported front-end web servers
 =================================
 
@@ -71,8 +74,6 @@ Supported download urls
 
 Other urls will use the normal zope download mechanism.
 
-Currently image scales aren't handled as xsendfile even though they are stored as blobs.
-
 Installation
 ==============
 
@@ -81,7 +82,7 @@ There are two ways to configure collective.xsendfile, either site by site, or gl
 Per Site:
 ---------
 
-* Put collective.xsendfile to your buildout
+* Add collective.xsendfile to your project's dependencies (see below)
 
 * Install the add-on to your site(s) through Plone add-on control panel
 
@@ -98,9 +99,9 @@ sites in a plone instance by using environment variables. Note configuration thi
 will disable the ability to configure per site. There is no need to activate the plugin
 in your Plone instance for this to work.
 
-1. Put collective.xsendfile to your buildout
+1. Add collective.xsendfile to your project's dependencies (see below)
 
-2. configure you zope instance (probably via buildout) to include set the following environment variables
+2. configure your zope instance to set the following environment variables
 
    ``XSENDFILE_RESPONSEHEADER``
         will activate global configuration.
@@ -119,10 +120,14 @@ in your Plone instance for this to work.
         If you are using nginx is will likely be something like ``/xsendfile\1``.
 
 
-Enabling collective.xsendfile in buildout
+Adding collective.xsendfile to your project
 ====================================================
 
-Include it in the buildout.cfg::
+Install it with pip::
+
+        pip install collective.xsendfile
+
+or, if you use buildout, include it in the buildout.cfg::
 
         eggs =
              collective.xsendfile
