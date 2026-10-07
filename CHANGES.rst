@@ -4,16 +4,19 @@ Changelog
 1.5 (unreleased)
 ----------------
 
+- Add support for Plone 6.2
+  [instification]
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
   [instification]
-- Support Python 3 & Plone >= 5.2 [frapell, instification]
+- Support Python 3 & Plone >= 5.2
+  [frapell, instification]
+
 
 1.4 (2022-06-13)
 ----------------
 
 - Log OSError on creating blob directory.
   [enfold]
-
 
 
 1.3 (2021-08-11)
@@ -45,11 +48,13 @@ Changelog
 - added tests
   [djay]
 
+
 1.1b1 (no pypi release)
 -----------------------
 
 - Can use environment variables to globally set xsendfile for all sites
   [djay]
+
 
 1.0dev (no pypi release)
 ------------------------
