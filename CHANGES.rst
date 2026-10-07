@@ -4,7 +4,9 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Add a ``s3blobs`` extra: zodb-s3blobs blobs are handed to the proxy as
+  presigned S3 URLs.
+  [instification]
 
 
 2.0.0 (2026-10-07)
