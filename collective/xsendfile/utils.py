@@ -3,6 +3,7 @@
     XSendFile download support for BLOBs
 """
 from Acquisition import aq_inner
+from ZODB.blob import Blob
 from ZODB.interfaces import BlobError
 from ZODB.interfaces import IBlob
 from ZODB.utils import z64
@@ -165,6 +166,10 @@ def get_settings():
 
 
 def _get_zodb_blob(blob):
+    # isinstance before providedBy: providedBy unghosts the blob, which loads
+    # its data (on zodb-s3blobs, downloads it).
+    if isinstance(blob, Blob):
+        return blob
     if HAS_NAMEDFILE and INamedBlobFile.providedBy(blob) and hasattr(blob, '_blob'):
         # HACK: uses internal knowledge but INamedBlobFile provides no way method
         # to get to the underlying blob
@@ -223,6 +228,17 @@ def _proxy_preconditions_ok(request, settings):
     return True
 
 
+def _committed_serial(zodb_blob, storage):
+    """Return the serial of the blob's committed revision.
+
+    A ghost's ``_p_serial`` isn't set until it is unghosted, so load the
+    blob's record instead; that reads its state, not its data.
+    """
+    if zodb_blob._p_changed is None:  # ghost
+        return storage.load(zodb_blob._p_oid)[1]
+    return zodb_blob._p_serial
+
+
 def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info,
                              settings, file=None, disposition='inline'):
     """Emit xsendfile headers for a blob backed by S3BlobStorage.
@@ -237,15 +253,14 @@ def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info,
     uploaded to S3 without metadata, so without this override S3 would
     serve them as ``binary/octet-stream``.
 
-    Relies on the Connection.setstate patch installed by zodb_s3blobs to
-    avoid downloading on Blob unghost; ``loadBlob`` itself remains eager
-    (so the streaming fallback path still works as before).
+    Doesn't unghost ``zodb_blob``: unghosting a blob downloads it from S3.
     """
     storage, _s3_client = storage_info
     oid = zodb_blob._p_oid
-    serial = zodb_blob._p_serial
-    if oid is None or serial is None:
+    if oid is None or zodb_blob._p_changed:
+        # Not committed yet, or changed in this transaction.
         return False
+    serial = _committed_serial(zodb_blob, storage)
 
     content_type = None
     filename = None
@@ -451,20 +466,11 @@ if HAS_NAMEDFILE:
         else:
             zodb_blob = self.data
 
-        # Mirror the Download.__call__ patch: hand the blob straight to
-        # set_xsendfile_header and let it decide. This deliberately drops the
-        # earlier _p_blob_committed guard, which checked for a *local*
-        # committed file path. On S3BlobStorage a committed blob has no local
-        # path (the lazy setstate patch avoids downloading it), so that guard
-        # tripped on every S3-backed scale and streamed the bytes through Zope
-        # instead of delegating — the exact thing xsendfile exists to avoid.
-        #
-        # The guard's stated purpose (not calling Blob.committed(), which
-        # downloads on S3) is already satisfied here: on the S3 path
-        # set_xsendfile_header presigns from the blob's oid/serial without
-        # opening it, and returns False for a genuinely uncommitted/pending
-        # blob (oid or serial is None) so we fall back to streaming — which is
-        # correct for an on-the-fly scale that hasn't been committed yet.
+        # As in the Download.__call__ patch, let set_xsendfile_header decide.
+        # Don't check _p_blob_committed first: it is only set once the blob
+        # is unghosted, and on S3BlobStorage the blob isn't a local file.
+        # set_xsendfile_header returns False for a blob that isn't committed
+        # (e.g. a scale generated in this request), which is then streamed.
         response = self.request.response
         if set_xsendfile_header(self.request, response, zodb_blob,
                                 file=self.data, disposition='inline'):

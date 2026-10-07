@@ -8,6 +8,9 @@ Changelog
   and S3 client, rather than a method only a fork of zodb-s3blobs had.
   Content-Disposition is sent as ``filename*=UTF-8''...``.
   [instification]
+- Delegate zodb-s3blobs blobs without unghosting them, which downloads them
+  from S3.
+  [instification]
 - Add support for Plone 6.2
   [instification]
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
