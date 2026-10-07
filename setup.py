@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from setuptools import find_packages
+from setuptools import find_namespace_packages
 from setuptools import setup
 
 
-version = '1.1.dev0'
+version = '1.5.dev0'
 
 setup(
     name='collective.xsendfile',
@@ -23,15 +23,23 @@ setup(
         'Framework :: Plone :: 4.3',
         'Framework :: Plone :: 5.0',
         'Framework :: Plone :: 5.1',
-
+        'Framework :: Plone :: 5.2',
+        'Framework :: Plone :: 6.0',
+        'Framework :: Plone :: 6.1',
+        'Framework :: Plone :: 6.2',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
+        'License :: OSI Approved :: GNU General Public License (GPL)',
+        'Development Status :: 5 - Production/Stable',
     ],
     keywords='sendfile httpaccel zodb blob',
     author='BlueDynamics Alliance',
     author_email='dev@bluedynamics.com',
     url='https://github.com/collective/collective.xsendfile',
     license='GPL',
-    packages=find_packages(exclude=['ez_setup']),
-    namespace_packages=['collective'],
+    packages=find_namespace_packages(exclude=['ez_setup']),
     include_package_data=True,
     zip_safe=False,
     install_requires=[
@@ -43,12 +51,21 @@ setup(
     extras_require={
         'test': [
             'plone.app.testing',
-            'plone.app.robotframework'
+            'zope.testrunner',
+            'coverage',
+        ],
+        'lint': [
+            'flake8',
+            'black',
+            'zpretty',
         ],
     },
     entry_points="""
     # -*- Entry points: -*-
     [z3c.autoinclude.plugin]
     target = plone
+    [plone.autoinclude.plugin]
+    target = plone
+    module = collective.xsendfile
     """,
     )

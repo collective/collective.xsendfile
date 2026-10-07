@@ -1,0 +1,25 @@
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312", "py313"]
+extend-exclude = '''
+/(
+    \.venv
+  | \.git
+  | build
+  | dist
+)/
+'''
+
+[tool.coverage.run]
+branch = true
+source = ["collective.xsendfile"]
+omit = ["collective/xsendfile/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

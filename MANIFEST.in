@@ -1,4 +1,5 @@
 graft src/collective
+include .editorconfig
 include *.rst
 global-exclude *.pyc
 global-exclude .DS_Store

@@ -1,11 +1,40 @@
 Changelog
 =========
 
-1.1 (unreleased)
+1.5 (unreleased)
 ----------------
+
+- Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
+  [instification]
+- Support Python 3 & Plone >= 5.2 [frapell, instification]
+
+1.4 (2022-06-13)
+----------------
+
+- Log OSError on creating blob directory.
+  [enfold]
+
+
+
+1.3 (2021-08-11)
+----------------
+
+- Do not use binary mode for reading/writing the .layout
+  [frapell]
+
+
+1.2 (2021-07-01)
+----------------
+
+- Plone 5.2 / Python 3
+  [frapell]
 
 - Add suport for image scales
   [frapell]
+
+
+1.1 (2021-06-24)
+----------------
 
 - add function `disable_xsendfile` to disable x-sendfile via code
   [enfold]
