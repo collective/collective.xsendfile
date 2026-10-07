@@ -42,6 +42,7 @@ from plone.app.testing import applyProfile
 from plone.app.testing import login
 from plone.app.testing import setRoles
 from plone.app.testing.layers import PloneFixture
+from plone.namedfile.file import NamedBlobFile
 from plone.namedfile.file import NamedBlobImage
 from plone.registry.interfaces import IRegistry
 from plone.testing import security
@@ -179,7 +180,8 @@ S3_PLONE_FIXTURE = S3PloneFixture()
 
 class XSendFileS3Layer(PloneSandboxLayer):
     """Full Plone sandbox on the S3-backed database. Creates a Dexterity
-    ``Image``, warms its default scale (so the scale blob is committed), and
+    ``Image`` and ``File``, warms the image's default scale (so the scale blob
+    is committed), and
     configures xsendfile the way production does (registry, fallback off)."""
 
     defaultBases = (S3_PLONE_FIXTURE,)
@@ -207,6 +209,10 @@ class XSendFileS3Layer(PloneSandboxLayer):
         # Warm the default scale so its blob is committed to S3 (an
         # on-the-fly, uncommitted scale would legitimately fall back).
         portal['image'].unrestrictedTraverse('@@images').scale(fieldname='image')
+        portal.invokeFactory(
+            'File', id='file',
+            file=NamedBlobFile(data=data, filename='image.gif'),
+        )
 
     def setUp(self):
         # Mirrors PloneSandboxLayer.setUp but without stacking (or tearing

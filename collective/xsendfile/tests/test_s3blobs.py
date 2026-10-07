@@ -40,6 +40,64 @@ if HAS_S3BLOBS:
             scale.index_html()
             return self.request.RESPONSE
 
+        def _cold(self, zodb_blob):
+            """Ghost ``zodb_blob`` and empty the local blob cache, so that
+            unghosting it would download it from S3. Returns the list that
+            records S3 downloads from then on."""
+            zodb_blob._p_deactivate()
+            storage = zodb_blob._p_jar._storage
+            cache_dir = storage._cache.cache_dir
+            for name in os.listdir(cache_dir):
+                shutil.rmtree(os.path.join(cache_dir, name), ignore_errors=True)
+            downloads = []
+            client = storage._s3_client
+            download_file = client.download_file
+
+            def record(*args):
+                downloads.append(args)
+                return download_file(*args)
+
+            client.download_file = record
+            self.addCleanup(delattr, client, 'download_file')
+            return downloads
+
+        def _assert_presigned(self, response, zodb_blob):
+            from zodb_s3blobs.storage import _oid_hex
+            from zodb_s3blobs.storage import _tid_hex
+
+            self.assertEqual(
+                response.getHeader('X-Accel-Redirect'), '/s3-internal/',
+            )
+            serial = zodb_blob._p_jar._storage.load(zodb_blob._p_oid)[1]
+            key = 'blobs/%s/%s.blob' % (_oid_hex(zodb_blob._p_oid), _tid_hex(serial))
+            self.assertIn(key, response.getHeader('X-S3-Url'))
+
+        def test_cold_image_delegates_without_download(self):
+            blob = self.portal['image'].image._blob
+            downloads = self._cold(blob)
+            response = self._serve_image()
+            self._assert_presigned(response, blob)
+            self.assertEqual(downloads, [])
+
+        def test_cold_file_download_delegates_without_download(self):
+            blob = self.portal['file'].file._blob
+            downloads = self._cold(blob)
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            view.publishTraverse(self.request, 'file')()
+            self._assert_presigned(self.request.RESPONSE, blob)
+            self.assertEqual(downloads, [])
+
+        def test_blob_changed_in_transaction_is_not_delegated(self):
+            """S3 only has the committed revision, so stream the new data."""
+            from collective.xsendfile.utils import set_xsendfile_header
+
+            blob = self.portal['file'].file._blob
+            with blob.open('w') as f:
+                f.write(b'changed')
+            response = self.request.RESPONSE
+            self.assertFalse(set_xsendfile_header(self.request, response, blob))
+            self.assertIsNone(response.getHeader('X-S3-Url'))
+
         def test_image_delegates_to_s3(self):
             response = self._serve_image()
             # The S3 xsendfile path routes via nginx's internal S3 location and
