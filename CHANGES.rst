@@ -1,12 +1,19 @@
 Changelog
 =========
 
-1.5 (unreleased)
-----------------
+2.0.0 (unreleased)
+------------------
 
+- Breaking: require Python 3.10 or later. Drop support for Python 2, Plone 5
+  and below.
+  [instification]
+- Licence changed to GPLv2 or later, was GPL
+  [instification]
+- Switch to semantic versioning
+  [instification]
 - Add support for Plone 6.2
   [instification]
-- Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
+- Don't monkeypatch ZODB blobs on ZODB 5.2.2 or later
   [instification]
 - Support Python 3 & Plone >= 5.2
   [frapell, instification]

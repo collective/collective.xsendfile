@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        plone-version: ["6.1.5", "6.2.2"]
+        plone-version: ["6.0.15", "6.1.5", "6.2.2"]
 
     steps:
       - uses: actions/checkout@v4
@@ -33,3 +33,21 @@ jobs:
         # Invoke via `python -m` so it does not depend on the zope-testrunner
         # console script being on PATH.
         run: python -m zope.testrunner --test-path=. -m collective.xsendfile
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check sdist contents, build and check distributions
+        run: |
+          pip install build check-manifest twine
+          check-manifest
+          python -m build
+          twine check --strict dist/*
