@@ -7,6 +7,8 @@ Changelog
 - Breaking: require Python 3.10 or later. Drop support for Python 2, Plone 5
   and below.
   [instification]
+- Licence changed to GPLv2 or later, was GPL
+  [instification]
 - Switch to semantic versioning
   [instification]
 - Add support for Plone 6.2

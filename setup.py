@@ -40,7 +40,7 @@ setup(
         'Issues': 'https://github.com/collective/collective.xsendfile/issues',
         'Changelog': 'https://github.com/collective/collective.xsendfile/blob/master/CHANGES.rst',
     },
-    license_expression='GPL-2.0-only',
+    license_expression='GPL-2.0-or-later',
     license_files=['LICENSE'],
     packages=find_namespace_packages(include=['collective.*']),
     include_package_data=True,
