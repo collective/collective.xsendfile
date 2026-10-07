@@ -1,9 +1,8 @@
 .. image:: https://github.com/collective/collective.xsendfile/actions/workflows/tests.yml/badge.svg?branch=master
     :target: https://github.com/collective/collective.xsendfile/actions/workflows/tests.yml
 
-.. This README is meant for consumption by humans and pypi. Pypi can render rst files so please do not use Sphinx features.
-   If you want to learn more about writing documentation, please check out: http://docs.plone.org/about/documentation_styleguide_addons.html
-   This text does not appear on pypi or github. It is a comment.
+.. This README is meant for consumption by humans and PyPI. PyPI can render rst files so please do not use Sphinx features.
+   This text does not appear on PyPI or GitHub. It is a comment.
 
 .. contents::
 
@@ -14,114 +13,62 @@ collective.xsendfile
 Introduction
 ==============
 
-Offload ZODB BLOB download to front end web server using XSendfile/HTTP-Accel Headers.
+Offload ZODB blob downloads to the front-end web server using the X-Sendfile / X-Accel-Redirect headers.
 
-XSendFile is an enhancement over HTTP front end proxy protocol which allows offloading of file uploads and downloads to the front end web server.
+X-Sendfile (Apache, Lighttpd) and X-Accel-Redirect (nginx) let a backend application tell the front-end web server to send a file from disk, instead of sending the file content itself.
 
-``collective.xsendfile`` package adds XSendFile support for Plone.
+``collective.xsendfile`` adds this to Plone:
 
-- Plone handles HTTP request publishing, permission checks, etc.
-  still normally
+- Plone still handles the request as normal: traversal, permission checks, response headers.
 
-- But instead of sending the file content over proxy connection Plone sends HTTP response with
-  special header telling the front end web server to read the file from the disk and
-  send the file for the user
+- Instead of streaming the file content through the proxy connection, Plone sends a response with a header holding the blob's file path. The front-end web server reads the file from disk and sends it to the user.
 
 .. note ::
 
-        Blob handling in ZODB is very effective already (async sockets, just like Apache or nginx would do).
-        Right after the headers are written to the response, the file gets handed over to the medusa async loop and the Zope thread is freed.
-        This add-on only removes the need to proxy the file data over socket connection.
-        The overhead of this may depend on the use case, so you might want to run some benchmarks before conclusion.
+        Zope already streams blobs efficiently.
+        This add-on goes further: the file data never passes through Zope or the proxy connection.
+        The benefit depends on your use case, so you may want to run some benchmarks.
 
-XSendFile support is available as ``collective.xsendfile`` add-on for Plone.
+Requirements
+============
 
-.. warning ::
+- The front-end web server must be able to read the ZODB blob files, so it needs access to the blob directory on the same filesystem (or a shared mount), with permissions that let its user read the files.
 
-        This work is still unfinished as `ZODB lacks one crucial feature regarding permissions <http://stackoverflow.com/questions/6168566/collective-xsendfile-zodb-blobs-and-unix-file-permissions>`_
+- Blobs must be committed. An image scale generated on the fly for the current request is streamed by Plone as usual; later requests for it are offloaded.
 
 Compatibility
 =============
 
 Version 2.x supports Plone 6.0, 6.1 and 6.2 on Python 3.10 or later.
-Use the 1.x releases for older Plone and Python versions.
+For older Plone and Python versions, use version 1.4 (git tag ``1.4``) from GitHub.
 
 Supported front-end web servers
 =================================
 
-* Apache
+* Apache, with mod_xsendfile (``X-Sendfile`` header)
 
-* Nginx
+* nginx (``X-Accel-Redirect`` header)
 
-* Lighttpd
+* Lighttpd (``X-Sendfile`` header)
 
 Supported download urls
 =======================
 
 * ``.../@@download/fieldname/filename``
 
-* ``.../context/form/++widget++widgetname/@@download/filename``
-
 * ``.../@@display-file/fieldname/filename``
 
-* ``.../at_download``
+* ``.../context/form/++widget++widgetname/@@download/filename``
 
-* ``.../@@images/image/index_html``
+* ``.../@@images/fieldname`` and image scales, e.g. ``.../@@images/image/preview``
 
-* direct url to ATFile and ATImage objects
-
-* direct url to ``plone.app.contenttypes`` File and Image objects
-
-Other urls will use the normal zope download mechanism.
+Other urls will use the normal Zope download mechanism.
 
 Installation
 ==============
 
-There are two ways to configure collective.xsendfile, either site by site, or globally per zope instance
-
-Per Site:
----------
-
-* Add collective.xsendfile to your project's dependencies (see below)
-
-* Install the add-on to your site(s) through Plone add-on control panel
-
-* Enable XSendFile module on your front-end web server
-  and virtual host configuration
-
-* In XSendFile Plone control panel, set HTTP header according to your server (Apache/Nginx)
-
-Per Zope Instance:
-------------------
-
-It is also possible to setup collective.xsendfile globablly for all your plone
-sites in a plone instance by using environment variables. Note configuration this way
-will disable the ability to configure per site. There is no need to activate the plugin
-in your Plone instance for this to work.
-
-1. Add collective.xsendfile to your project's dependencies (see below)
-
-2. configure your zope instance to set the following environment variables
-
-   ``XSENDFILE_RESPONSEHEADER``
-        will activate global configuration.
-        Likely values are either ``X-Sendfile`` (apache) or ``X-Accel-Redirect`` (nginx).
-
-   ``XSENDFILE_ENABLE_FALLBACK``
-        True means if ``HTTP_X_FORWARDED_FOR`` isn't found in the request prevent xsendfile processing from occuring.
-
-   ``XSENDFILE_PATHREGEX_SEARCH``
-        If you need modify the full path of a blob you can extract parts of it here.
-        Defaults to ``(.*)``.
-
-   ``XSENDFILE_PATHREGEX_SUBSTITUTE``
-        If you need to modify the full path of a blob you can use this replace parts of the path here.
-        Defaults to ``\1``.
-        If you are using nginx is will likely be something like ``/xsendfile\1``.
-
-
 Adding collective.xsendfile to your project
-====================================================
+-------------------------------------------
 
 Install it with pip::
 
@@ -132,135 +79,143 @@ or, if you use buildout, include it in the buildout.cfg::
         eggs =
              collective.xsendfile
 
+Its ZCML is loaded automatically through ``plone.autoinclude``.
+
+Configuration
+-------------
+
+There are two ways to configure collective.xsendfile, either site by site, or globally per Zope instance.
+
+Per site
+~~~~~~~~
+
+* Install the add-on in your site(s) through the Plone add-on control panel
+
+* Enable XSendFile on your front-end web server and virtual host configuration (see below)
+
+* In the XSendFile Plone control panel, set the HTTP response header for your server and, if needed, the path rewriting
+
+Per Zope instance
+~~~~~~~~~~~~~~~~~
+
+collective.xsendfile can also be configured globally for all Plone sites in a Zope instance using environment variables.
+When ``XSENDFILE_RESPONSEHEADER`` is set, the per-site settings are ignored, and there is no need to install the add-on in your sites.
+
+``XSENDFILE_RESPONSEHEADER``
+     Activates global configuration.
+     Either ``X-Sendfile`` (Apache, Lighttpd) or ``X-Accel-Redirect`` (nginx).
+
+``XSENDFILE_ENABLE_FALLBACK``
+     ``true`` (the default) or ``yes`` means the file is served by Zope as usual when the request has no ``X-Forwarded-For`` header, i.e. when it did not come through the front-end proxy.
+     Any other value always uses the header.
+
+``XSENDFILE_PATHREGEX_SEARCH``
+     Regular expression applied to the blob's absolute file path.
+     Defaults to ``(.*)``.
+
+``XSENDFILE_PATHREGEX_SUBSTITUTE``
+     Replacement for the matched path (Python ``re.sub`` syntax).
+     Defaults to ``\1``.
+     For nginx this has to produce a URL under an ``internal`` location, for example ``/xsendfile/\1``.
+
+The per-site control panel has the same four settings.
+
+Disabling for a request
+-----------------------
+
+Code that needs Zope to serve a file itself can disable xsendfile for the current request::
+
+        from collective.xsendfile.utils import disable_xsendfile
+
+        disable_xsendfile(request)
 
 XSendFile installation for Apache on Debian/Ubuntu
 ====================================================
 
-Install Apache module (Debian/Ubuntu)::
+Install and enable the Apache module::
 
-        # alternatively -thread-dev, depends on your apache configuration
-        sudo apt-get install apt-get install apache2-prefork-dev
-        wget --no-check-certificate https://tn123.org/mod_xsendfile/mod_xsendfile.c
-        sudo apxs2 -cia mod_xsendfile.c
-
-
-Enable Apache module::
-
+        sudo apt-get install libapache2-mod-xsendfile
         sudo a2enmod xsendfile
+        sudo systemctl reload apache2
 
-Restart Apache::
+Related virtual host configuration. Limit ``XSendFilePath`` to the blob directory, so the header cannot be used to send any other file::
 
-        /etc/init.d/apache2 force-reload
+        <VirtualHost *:80>
 
-Related virtual host configuration file::
-
-        Listen 8082
-
-        LoadModule xsendfile_module   modules/mod_xsendfile.so
-
-        <VirtualHost *:8082>
-
-            ServerName test
+            ServerName example.com
 
             XSendFile on
-            XSendFilePath /
+            XSendFilePath /path/to/var/blobstorage
 
             RewriteEngine On
-            RewriteRule (.*) http://127.0.0.1:8080/VirtualHostBase/http/test:8082/VirtualHostRoot/$1 [L,P]
+            RewriteRule (.*) http://127.0.0.1:8080/VirtualHostBase/http/example.com:80/VirtualHostRoot/$1 [L,P]
 
         </VirtualHost>
 
-XSendFile installation on Nginx
+Use the ``X-Sendfile`` header and leave the path settings at their defaults.
+
+XSendFile installation on nginx
 =================================
 
-Here's a nginx.conf, take a closer look at the server locations, that's where the magic happens.
+nginx needs an ``internal`` location that maps a URL prefix to the blob directory.
+``internal`` is essential: it stops browsers from requesting that location directly::
 
-nginx.conf::
+        server {
+            listen 80;
+            server_name example.com;
 
-        worker_processes  4;
-
-        events {
-            worker_connections  1024;
-        }
-
-        http {
-
-            include /Users/bernhard/Documents/Work/tmp/XSendFile/agitator-simple-nginx/etc/mime.types;
-            default_type application/octet-stream;
-
-            sendfile on;  # This enables the X-Accel-Redirect feature
-
-            # For more info about content zipping see http://wiki.nginx.org/HttpGzipModule
-            gzip on;
-            gzip_proxied any;
-            gzip_min_length 1024;
-            gzip_types text/plain text/html application/x-javascript text/css text/xml application/pdf application/octet-stream;
-
-            server {
-
-                listen *:8081 default;
-
-                access_log /Users/bernhard/Documents/Work/tmp/XSendFile/agitator-simple-nginx/log/access.log;
-                error_log /Users/bernhard/Documents/Work/tmp/XSendFile/agitator-simple-nginx/log/error.log;
-
-                # Add some headers to transmit more info about the client. Yes, that is kind.
-                location / {
-                        proxy_pass http://127.0.0.1:8080/VirtualHostBase/http/$host:9000/VirtualHostRoot/$request_uri;
-                        proxy_set_header   Host             $host;
-                        proxy_set_header   X-Real-IP        $remote_addr;
-                        proxy_set_header   X-Forwarded-Host $server_name;
-                        proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
-                }
-
-                # This location definition has to match the prefix in utils.py tp make it work
-                # "internal" is a must for security - it prevents direct access from browsers
-                #   - http://wiki.nginx.org/HttpCoreModule#internal
-                # "alias" points to your blob storage root; Regex is supported
-                #   - http://wiki.nginx.org/HttpCoreModule#alias
-                location /xsendfile/ {
-                        internal;
-                        alias /;
-                }
-
+            location / {
+                proxy_pass http://127.0.0.1:8080/VirtualHostBase/http/$host:80/VirtualHostRoot/;
+                proxy_set_header Host            $host;
+                proxy_set_header X-Real-IP       $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             }
 
+            location /xsendfile/ {
+                internal;
+                alias /path/to/var/blobstorage/;
+            }
         }
 
+Then use the ``X-Accel-Redirect`` header and rewrite the blob path into that location:
+
+- path regex search: ``^/path/to/var/blobstorage/(.*)``
+- path regex substitution: ``/xsendfile/\1``
 
 More info
 ==========
 
-* https://github.com/collective/collective.xsendfile/tree/master/collective/xsendfile
+* https://github.com/collective/collective.xsendfile
 
-* http://blog.jazkarta.com/2010/09/21/handling-large-files-in-plone-with-ore-bigfile/
+* https://nginx.org/en/docs/http/ngx_http_core_module.html#internal
 
-* http://svn.objectrealms.net/view/public/browser/ore.bigfile/trunk/ore/bigfile/readme.txt?rev=2353
+* https://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
 
-* `Apache XSendFile installation instructions (Debian/Ubuntu) <http://www.qc4blog.com/?p=547>`_
+* https://github.com/nmaier/mod_xsendfile
 
-* http://kovyrin.net/2006/11/01/nginx-x-accel-redirect-php-rails/
-
-* https://tn123.org/mod_xsendfile/
+* https://blog.jazkarta.com/2010/09/21/handling-large-files-in-plone-with-ore-bigfile/
 
 Troubleshooting
 ===============
 
-If you get HTTP response like::
+If you get an HTTP response like::
 
         OK
 
         The requested URL /site-images/xxx/cairo.jpg was not found on this server.
 
-It is probably a file permission issue.
+it is probably a file permission issue: the web server user cannot read the blob file.
+Also check that the path in the response header, after rewriting, matches your web server configuration.
 
 Authors
 =======
 
-- Peter Holzer peter@agitator.com
-- Georg Gogo. BERNHARD gogo@bluedynamics.com
-- Mikko Ohtamaa mikko@mfabrik.com
-- Jens W. Klein jens@bluedynamics.com
-- Dylan Jay software@pretaweb.com
+- Peter Holzer (`@agitator <https://github.com/agitator>`__)
+- Georg Gogo. BERNHARD (`@gogobd <https://github.com/gogobd>`__)
+- Mikko Ohtamaa (`@miohtama <https://github.com/miohtama>`__)
+- Jens W. Klein (`@jensens <https://github.com/jensens>`__)
+- Dylan Jay (`@djay <https://github.com/djay>`__)
+- Jon Pentland (`@instification <https://github.com/instification>`__)
 
 Special thanks to Kapil Thangavelu, we extensively borrowed from his code ;-)
 
@@ -268,4 +223,3 @@ License
 =======
 
 GNU General Public License, version 2 or later (``GPL-2.0-or-later``). See ``LICENSE``.
-
