@@ -12,11 +12,10 @@ jobs:
     # [s3blobs] extra is installed, so the base run exercises everything else
     # while the s3blobs run additionally covers the moto/RelStorage S3 layer.
     #
-    # NOTE: the s3blobs run currently fails against the published zodb-s3blobs,
-    # which lacks the MVCCAdapter/IMVCCStorage fix the S3 delegation path needs
-    # (jar._storage is an MVCCAdapterInstance, so _resolve_s3_blob_storage
-    # cannot see the S3BlobStorage). That is intentional: the red run signals
-    # the S3 path is not ready until that fix is released upstream.
+    # NOTE: the s3blobs run fails against zodb-s3blobs 1.1.0, which doesn't
+    # provide IMVCCStorage (bluedynamics/zodb-s3blobs#23): jar._storage is
+    # then an MVCCAdapterInstance, so _resolve_s3_blob_storage can't see the
+    # S3BlobStorage. It goes green once that is released.
     name: ${{ matrix.name }} (Plone ${{ matrix.plone-version }})
     runs-on: ubuntu-latest
     strategy:

@@ -5,8 +5,10 @@
 from Acquisition import aq_inner
 from ZODB.interfaces import BlobError
 from ZODB.interfaces import IBlob
+from ZODB.utils import z64
 from collective.xsendfile.interfaces import IxsendfileSettings
 from plone.registry.interfaces import IRegistry
+from urllib.parse import quote
 from z3c.form.interfaces import IDataManager
 from zope.annotation.interfaces import IAnnotations
 from zope.component import getMultiAdapter
@@ -29,11 +31,10 @@ def _resolve_s3_blob_storage(zodb_blob):
     S3BlobStorage, else None. Import-guarded so environments without
     zodb-s3blobs installed continue to work.
 
-    Prefers the Connection's MVCC instance of the storage (``jar._storage``)
-    over ``db.storage``. ZODB's ``DB.open()`` calls ``new_instance()`` on the
-    storage for each connection; S3BlobStorage keeps pending/staged state on
-    the per-connection instance, so the primary may not reflect what the
-    current transaction sees.
+    Uses the connection's storage (``jar._storage``): when S3BlobStorage
+    provides ``IMVCCStorage`` each connection has its own instance, which
+    holds that connection's pending blobs. Without ``IMVCCStorage`` it is a
+    ZODB ``MVCCAdapterInstance`` and the S3 path isn't used.
     """
     if not HAS_S3BLOBS:
         return None
@@ -47,6 +48,45 @@ def _resolve_s3_blob_storage(zodb_blob):
     if not isinstance(storage, S3BlobStorage):
         return None
     return storage, storage._s3_client
+
+
+def _presigned_url(storage, oid, serial, content_type=None, filename=None,
+                   disposition='inline', expires_in=60):
+    """Return a presigned S3 GET URL for a committed blob, or None.
+
+    ``content_type`` and ``filename`` set the response's Content-Type and
+    Content-Disposition (blobs are stored in S3 without metadata); they are
+    signed with the URL. Returns None, for the caller to stream the blob,
+    when there is no committed revision to sign (no oid or serial, or a blob
+    being committed in this transaction), with SSE-C (the proxy can't send
+    the key) or if signing fails.
+
+    Relies on zodb-s3blobs internals (as of 1.1.0): the storage's key layout,
+    pending blobs and S3 client. Keep that access to this function.
+    """
+    if oid is None or serial in (None, z64):
+        return None
+    s3_client = storage._s3_client
+    if oid in storage._pending_blobs or s3_client._sse_extra_args:
+        return None
+    params = {
+        'Bucket': s3_client.bucket_name,
+        'Key': s3_client._full_key(storage._s3_key(oid, serial)),
+    }
+    if content_type:
+        params['ResponseContentType'] = content_type
+    if filename:
+        params['ResponseContentDisposition'] = "%s; filename*=UTF-8''%s" % (
+            disposition, quote(filename))
+    try:
+        return s3_client._client.generate_presigned_url(
+            'get_object', Params=params, ExpiresIn=expires_in)
+    except Exception:
+        logger.warning(
+            'xsendfile: failed to presign S3 URL for oid=%r serial=%r',
+            oid, serial, exc_info=True,
+        )
+        return None
 
 try:
     from plone.namedfile.utils import get_contenttype
@@ -215,15 +255,15 @@ def _set_s3_xsendfile_header(request, response, zodb_blob, storage_info,
             getattr(file, 'content_type', None)
         filename = getattr(file, 'filename', None)
 
-    presigned_url = storage.xsendfile_presigned_url(
-        oid, serial, expires=60,
+    presigned_url = _presigned_url(
+        storage, oid, serial,
         content_type=content_type, filename=filename,
         disposition=disposition,
     )
     if presigned_url is None:
         logger.warning(
-            'xsendfile S3 SKIP: storage.xsendfile_presigned_url returned '
-            'None (oid=%r serial=%r) — blob likely pending or S3 error',
+            'xsendfile S3 SKIP: no presigned URL (oid=%r serial=%r) — blob '
+            'likely pending or S3 error',
             oid, serial,
         )
         return False

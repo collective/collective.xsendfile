@@ -4,6 +4,10 @@ Changelog
 1.5 (unreleased)
 ----------------
 
+- Presign S3 URLs for zodb-s3blobs blobs here, using zodb-s3blobs' storage
+  and S3 client, rather than a method only a fork of zodb-s3blobs had.
+  Content-Disposition is sent as ``filename*=UTF-8''...``.
+  [instification]
 - Add support for Plone 6.2
   [instification]
 - Don't monkeypatch ZODB blobs if ZODB <= 5.2.2
