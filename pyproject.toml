@@ -1,3 +1,8 @@
+[build-system]
+# 77 is the first setuptools to support license_expression (PEP 639).
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
 line-length = 88
 target-version = ["py310", "py311", "py312", "py313"]

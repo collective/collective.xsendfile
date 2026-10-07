@@ -264,3 +264,8 @@ Authors
 
 Special thanks to Kapil Thangavelu, we extensively borrowed from his code ;-)
 
+License
+=======
+
+GNU General Public License, version 2 (``GPL-2.0-only``). See ``LICENSE``.
+
