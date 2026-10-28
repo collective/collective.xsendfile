@@ -4,9 +4,7 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
-- Add a ``s3blobs`` extra: zodb-s3blobs blobs are handed to the proxy as
-  presigned S3 URLs. Requires zodb-s3blobs 1.2.0 or later. Its tests need the
-  ``test-s3blobs`` extra.
+- Add a ``s3blobs`` extra with support for zodb-s3blobs via pre-signed s3 urls
   [instification]
 
 
