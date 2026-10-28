@@ -63,14 +63,17 @@ setup(
             'zpretty',
         ],
         # Optional S3 blob delivery support. Not pulled in by the base
-        # package: install via ``collective.xsendfile[s3blobs]``. Bundles the
-        # runtime dependency (zodb-s3blobs) together with the tooling its test
-        # layer needs (moto for a mock S3, relstorage[sqlite3] as an in-process
-        # storage that exposes the commit TID the way production's does).
+        # package: install via ``collective.xsendfile[s3blobs]``.
         # zodb-s3blobs 1.2.0 is the first release that provides IMVCCStorage,
         # without which the S3BlobStorage can't be found from a connection.
         's3blobs': [
             'zodb-s3blobs>=1.2.0',
+        ],
+        # What the S3 tests need on top of ``test``: the s3blobs extra, moto
+        # for a mock S3, and relstorage[sqlite3] as an in-process storage that
+        # exposes the commit TID the way production's does.
+        'test-s3blobs': [
+            'collective.xsendfile[s3blobs]',
             'moto[s3]',
             'relstorage[sqlite3]',
         ],

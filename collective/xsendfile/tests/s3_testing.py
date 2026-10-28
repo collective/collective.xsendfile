@@ -13,9 +13,9 @@ connection's ``_storage`` is a ``DemoStorage`` rather than an
 DemoStorage stacking and keep the single S3-backed database as the connection
 storage.
 
-Requires the ``[s3blobs]`` extra (``zodb-s3blobs``, ``relstorage[sqlite3]``,
-``moto[s3]``). Importing this module without those installed raises
-``ImportError`` so dependent tests skip cleanly.
+Requires the ``[test-s3blobs]`` extra (``zodb-s3blobs``,
+``relstorage[sqlite3]``, ``moto[s3]``). Importing this module without those
+installed raises ``ImportError`` so dependent tests skip cleanly.
 """
 import os
 import shutil

@@ -8,7 +8,7 @@ delegating. This exercises that exact production shape: with the guard present
 the response carries no xsendfile header (fails); with the guard removed the S3
 path sets ``X-Accel-Redirect`` + ``X-S3-Url`` (passes).
 
-Skips unless the ``[s3blobs]`` extra is installed.
+Skips unless the ``[test-s3blobs]`` extra is installed.
 """
 import os
 import shutil
@@ -22,9 +22,10 @@ except ImportError:
     HAS_S3BLOBS = False
 
 
-# Only define the layer-bound test case when the [s3blobs] extra is installed.
-# A class with ``layer = None`` would break zope-testrunner's layer discovery,
-# so absence of the extra means this module simply contributes no tests.
+# Only define the layer-bound test case when the [test-s3blobs] extra is
+# installed. A class with ``layer = None`` would break zope-testrunner's layer
+# discovery, so absence of the extra means this module simply contributes no
+# tests.
 if HAS_S3BLOBS:
 
     class ImageScaleS3TestCase(unittest.TestCase):
@@ -230,8 +231,8 @@ if HAS_S3BLOBS:
 else:
 
     class ImageScaleS3TestCase(unittest.TestCase):
-        # No layer here: the [s3blobs] extra is not installed, so there is no
-        # S3 storage to build. Report a skip rather than an empty module.
-        @unittest.skip('requires the collective.xsendfile[s3blobs] extra')
+        # No layer here: the [test-s3blobs] extra is not installed, so there
+        # is no S3 storage to build. Report a skip rather than an empty module.
+        @unittest.skip('requires the collective.xsendfile[test-s3blobs] extra')
         def test_image_delegates_to_s3(self):
             pass
