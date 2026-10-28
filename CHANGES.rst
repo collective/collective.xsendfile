@@ -4,7 +4,8 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Add a ``s3blobs`` extra with support for zodb-s3blobs via pre-signed s3 urls
+  [instification]
 
 
 2.0.0 (2026-10-07)

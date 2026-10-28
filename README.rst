@@ -182,6 +182,66 @@ Then use the ``X-Accel-Redirect`` header and rewrite the blob path into that loc
 - path regex search: ``^/path/to/var/blobstorage/(.*)``
 - path regex substitution: ``/xsendfile/\1``
 
+Blobs stored in S3 (zodb-s3blobs)
+==================================
+
+If the site keeps its blobs in S3 with `zodb-s3blobs <https://github.com/bluedynamics/zodb-s3blobs>`__, there is no blob file on disk for the web server to read.
+Instead, Plone hands nginx a short-lived presigned S3 URL, and nginx fetches the blob from S3 and sends it to the user.
+The blob is neither downloaded into Zope nor streamed through it.
+
+Install the ``s3blobs`` extra, which requires zodb-s3blobs 1.2.0 or later (the first release that provides ``IMVCCStorage``; with an older release the S3 path is never used)::
+
+        pip install "collective.xsendfile[s3blobs]"
+
+How it works
+------------
+
+When the blob's storage is an ``S3BlobStorage``, collective.xsendfile:
+
+- presigns a ``GET`` URL for the blob's committed revision, valid for 60 seconds, with the file's content type and filename signed into it (blobs are stored in S3 without metadata);
+- sends it in an ``X-S3-Url`` response header;
+- sets the configured response header to ``/s3-internal/``.
+
+It does this without loading the blob, which on ``S3BlobStorage`` would download it from S3.
+The path regex settings are not used for S3 blobs.
+
+Plone streams the blob as usual when there is nothing it can presign: a blob added or changed in the current transaction (including an image scale generated for this request), a storage using SSE-C (the proxy can't send the customer key), or if signing fails.
+
+nginx configuration
+-------------------
+
+Use the ``X-Accel-Redirect`` header: Apache and Lighttpd can only send files from disk.
+Add an ``internal`` location that proxies to the URL in ``X-S3-Url``.
+Because ``proxy_pass`` uses a variable, nginx needs a ``resolver`` to look up the S3 host::
+
+        server {
+            ...
+            resolver 127.0.0.53 valid=10s;
+
+            location /s3-internal/ {
+                internal;
+
+                # The presigned URL from Plone, used as it is: rewriting it
+                # would break the signature.
+                set $s3_url $upstream_http_x_s3_url;
+                proxy_pass $s3_url;
+                proxy_ssl_server_name on;
+                proxy_http_version 1.1;
+                proxy_set_header Host $proxy_host;
+
+                # Don't forward the user's credentials to S3.
+                proxy_set_header Authorization '';
+                proxy_set_header Cookie '';
+
+                proxy_buffering off;
+                proxy_pass_request_body off;
+                proxy_set_header Content-Length '';
+            }
+        }
+
+Plone still checks permissions before handing over the URL, and the URL itself never reaches the browser.
+The ``XSENDFILE_ENABLE_FALLBACK`` setting applies as for local blobs.
+
 More info
 ==========
 
