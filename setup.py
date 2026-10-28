@@ -67,8 +67,10 @@ setup(
         # runtime dependency (zodb-s3blobs) together with the tooling its test
         # layer needs (moto for a mock S3, relstorage[sqlite3] as an in-process
         # storage that exposes the commit TID the way production's does).
+        # zodb-s3blobs 1.2.0 is the first release that provides IMVCCStorage,
+        # without which the S3BlobStorage can't be found from a connection.
         's3blobs': [
-            'zodb-s3blobs',
+            'zodb-s3blobs>=1.2.0',
             'moto[s3]',
             'relstorage[sqlite3]',
         ],
