@@ -297,8 +297,7 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
-def set_xsendfile_header(request, response, blob, file=None,
-                         disposition=None):
+def set_xsendfile_header(request, response, blob, file=None):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
         return True if set
@@ -306,9 +305,6 @@ def set_xsendfile_header(request, response, blob, file=None,
         ``file`` is the owning NamedBlob/Image (when distinct from
         ``blob``); used on the S3 path to override S3's stored
         Content-Type via a signed query param.
-
-        ``disposition`` is ignored, and kept so that 2.0.1 callers still
-        work: the caller's own Content-Disposition header is the one sent.
     """
     path = request.get('PATH_INFO', '?')
     if xsendfile_is_disabled(request):

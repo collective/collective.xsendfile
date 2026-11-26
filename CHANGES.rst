@@ -4,11 +4,7 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
-- S3 route: send one Content-Disposition header. nginx keeps Zope's
-  Content-Disposition through the ``X-Accel-Redirect``, and S3 added a second
-  one from the presigned URL's ``response-content-disposition``, which Chrome
-  refuses when the two differ. The presigned URL now only overrides the
-  Content-Type. ``set_xsendfile_header``'s ``disposition`` argument is ignored.
+- Prevent duplicate content-disposition headers when using presigned s3 urls
   [instification]
 
 
