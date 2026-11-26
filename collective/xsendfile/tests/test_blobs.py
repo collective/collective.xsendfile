@@ -116,7 +116,7 @@ class DownloadTestCase(BaseTestCase):
         self.assertEqual(body, '')
         self.assertIsNone(response.getHeader('X-SENDFILE'))
         # Shown inline, as plone.namedfile's DisplayFile does: no header, or
-        # (from plone.namedfile 7.1) an inline one with the filename.
+        # (in the plone.namedfile of Plone 6.2) an inline one with the filename.
         disposition = response.getHeader('Content-Disposition') or 'inline'
         self.assertTrue(disposition.startswith('inline'), disposition)
 
