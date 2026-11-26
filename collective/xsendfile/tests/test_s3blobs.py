@@ -177,7 +177,10 @@ if HAS_S3BLOBS:
             )
             self.assertNotIn(
                 'response-content-disposition', self._presigned_query(response))
-            self.assertIsNone(response.getHeader('Content-Disposition'))
+            # Only Zope's header, if any, and it shows the file inline
+            disposition = response.getHeader('Content-Disposition')
+            self.assertTrue(
+                (disposition or 'inline').startswith('inline'), disposition)
 
         def test_image_has_no_content_disposition(self):
             response = self._serve_image()
