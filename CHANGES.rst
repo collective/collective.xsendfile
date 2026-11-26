@@ -4,7 +4,8 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Answer HEAD requests for downloads without handing off to the proxy
+  [instification]
 
 
 2.0.1 (2026-10-28)

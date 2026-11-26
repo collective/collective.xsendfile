@@ -80,6 +80,43 @@ class DownloadTestCase(BaseTestCase):
         response = self._download()
         self.assertIsNone(response.getHeader('X-SENDFILE'))
 
+    def _head(self, view_name='@@download'):
+        self.request.environ['REQUEST_METHOD'] = 'HEAD'
+        view = self.portal['file'].unrestrictedTraverse(view_name)
+        body = view.publishTraverse(self.request, 'file')()
+        return self.request.RESPONSE, body
+
+    def test_head_is_not_delegated(self):
+        """A HEAD gets the GET's headers from the file, not a handoff."""
+        from collective.xsendfile.testing import getData
+
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
+        self.assertEqual(response.getHeader('Content-Type'), 'image/gif')
+        self.assertEqual(
+            response.getHeader('Content-Length'), str(len(getData('image.gif'))))
+        self.assertEqual(
+            response.getHeader('Content-Disposition'),
+            "attachment; filename*=UTF-8''image.gif")
+
+    def test_head_not_configured(self):
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertEqual(response.getHeader('Content-Type'), 'image/gif')
+
+    def test_head_display_file(self):
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        response, body = self._head('@@display-file')
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
+        self.assertIsNone(response.getHeader('Content-Disposition'))
+
     def _image_scale(self):
         scales = self.portal['image'].unrestrictedTraverse('@@images')
         scale = scales.publishTraverse(self.request, 'image')

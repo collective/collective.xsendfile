@@ -303,6 +303,16 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
+def is_head_request(request):
+    """True for a HEAD request.
+
+    The download patches answer a HEAD from the file's metadata, without
+    handing off to the proxy: nginx would send the HEAD on to S3 with a URL
+    presigned for GET, which S3 refuses.
+    """
+    return request.get('REQUEST_METHOD', 'GET').upper() == 'HEAD'
+
+
 def set_xsendfile_header(request, response, blob, file=None,
                          disposition='inline'):
     """ set the xsendheader response header if enabled
@@ -403,6 +413,11 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
+            if is_head_request(self.request):
+                # The headers a GET gets, and no body. Neither hands off nor
+                # opens the blob, unless the size isn't stored on the file.
+                self.set_headers(file)
+                return ''
             if HAS_NAMEDFILE and IBlobby.providedBy(file):
                 zodb_blob = file._blob
             else:
@@ -445,6 +460,10 @@ if HAS_NAMEDFILE:
 
         if not self.filename:
             self.filename = getattr(file_, 'filename', None)
+
+        if is_head_request(self.request):
+            set_headers(file_, self.request.response, filename=self.filename)
+            return ''
 
         if IBlobby.providedBy(file_):
             zodb_blob = file_._blob

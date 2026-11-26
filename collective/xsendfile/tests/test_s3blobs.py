@@ -88,6 +88,23 @@ if HAS_S3BLOBS:
             self._assert_presigned(self.request.RESPONSE, blob)
             self.assertEqual(downloads, [])
 
+        def test_head_needs_no_download(self):
+            """A HEAD on an S3 blob whose size is stored on the file neither
+            hands off (S3 refuses a HEAD on a URL presigned for GET) nor
+            downloads the blob."""
+            file = self.portal['file'].file
+            file.size  # stored on the file, as an upload's indexing does
+            downloads = self._cold(file._blob)
+            self.request.environ['REQUEST_METHOD'] = 'HEAD'
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            self.assertEqual(view.publishTraverse(self.request, 'file')(), '')
+            response = self.request.RESPONSE
+            self.assertIsNone(response.getHeader('X-Accel-Redirect'))
+            self.assertIsNone(response.getHeader('X-S3-Url'))
+            self.assertEqual(
+                response.getHeader('Content-Length'), str(file.size))
+            self.assertEqual(downloads, [])
+
         def test_blob_changed_in_transaction_is_not_delegated(self):
             """S3 only has the committed revision, so stream the new data."""
             from collective.xsendfile.utils import set_xsendfile_header
