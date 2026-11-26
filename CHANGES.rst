@@ -6,6 +6,8 @@ Changelog
 
 - Prevent duplicate content-disposition headers when using presigned s3 urls
   [instification]
+- Call the original download views when not handing off to the proxy
+  [instification]
 
 
 2.0.1 (2026-10-28)
