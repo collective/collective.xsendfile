@@ -8,6 +8,8 @@ Changelog
   [instification]
 - Call the original download views when not handing off to the proxy
   [instification]
+- Answer HEAD requests for downloads without handing off to the proxy
+  [instification]
 
 
 2.0.1 (2026-10-28)
