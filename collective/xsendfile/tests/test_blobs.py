@@ -90,8 +90,11 @@ class DownloadTestCase(BaseTestCase):
         return response
 
     def test_display_file_inline(self):
-        """A type that may be shown inline gets no Content-Disposition."""
-        self.assertIsNone(self._display_file().getHeader('Content-Disposition'))
+        """A type that may be shown inline isn't made a download: no header,
+        or (in the plone.namedfile of Plone 6.2) an inline one."""
+        disposition = self._display_file().getHeader('Content-Disposition')
+        self.assertTrue((disposition or 'inline').startswith('inline'),
+                        disposition)
 
     def test_display_file_html_is_downloaded(self):
         """As plone.namedfile's DisplayFile: a type that may not be shown

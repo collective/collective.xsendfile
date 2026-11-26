@@ -303,6 +303,34 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
+class _SizedFile(object):
+    """A file whose ``getSize()`` returns the size given here.
+
+    plone.namedfile's ``set_headers`` calls ``getSize()``, which opens the
+    blob when no size is stored on the file. Passing it this instead gives
+    the view's own headers without opening the blob.
+    """
+
+    def __init__(self, file, size):
+        self._file = file
+        self._size = size
+
+    def __getattr__(self, name):
+        return getattr(self._file, name)
+
+    def getSize(self):
+        return self._size
+
+
+def set_view_headers(view, file, size=None):
+    """Set the headers ``view`` sets for ``file`` (plone.namedfile's
+    ``set_headers``), without opening the blob: with ``size`` as the
+    Content-Length, or none without it."""
+    view.set_headers(_SizedFile(file, size))
+    if size is None:
+        view.request.response.headers.pop('content-length', None)
+
+
 def set_xsendfile_header(request, response, blob, file=None,
                          disposition='inline'):
     """ set the xsendheader response header if enabled
@@ -400,31 +428,6 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 #  and also used for ../context/@@display-file/fieldname/filename
 
 if HAS_NAMEDFILE:
-    def _media_type(content_type):
-        """The media type of a Content-Type, as plone.namedfile compares it."""
-        try:
-            from plone.namedfile.utils import extract_media_type
-        except ImportError:
-            return content_type.split(';', 1)[0].strip().lower()
-        return extract_media_type(content_type)
-
-    def _inline_allowed(view, file):
-        """True if ``view`` (a DisplayFile) may show ``file`` inline.
-
-        As DisplayFile.set_headers: only types on its allowlist (or off its
-        denylist) are shown inline, and any other type, such as HTML or SVG,
-        is downloaded so that it can't run as a page of the site.
-        """
-        content_type = getattr(file, 'contentType', None)
-        if not content_type:
-            return True
-        media_type = _media_type(content_type)
-        if getattr(view, 'use_denylist', False):
-            return media_type not in getattr(
-                view, 'disallowed_inline_mimetypes', ())
-        allowed = getattr(view, 'allowed_inline_mimetypes', None)
-        return allowed is None or media_type in allowed
-
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
@@ -433,22 +436,17 @@ if HAS_NAMEDFILE:
             else:
                 zodb_blob = file
             response = self.request.response
-            from plone.namedfile.browser import DisplayFile
-            # Inline for a DisplayFile whose type may be shown inline (image
-            # previews), attachment for downloads and every other type.
-            filename = None
-            if not (isinstance(self, DisplayFile)
-                    and _inline_allowed(self, file)):
-                filename = self.filename or getattr(file, 'filename', None) \
-                    or self.fieldname or 'file.ext'
-            disposition = 'inline' if filename is None else 'attachment'
+            # The view's own headers, so plone.namedfile decides the
+            # disposition, including which types DisplayFile shows inline.
+            # Without Content-Length, which nginx/S3 sets: getSize() could
+            # open the blob, which is what xsendfile avoids.
+            set_view_headers(self, file)
+            disposition = 'inline'
+            if (response.getHeader('Content-Disposition') or '').startswith(
+                    'attachment'):
+                disposition = 'attachment'
             if set_xsendfile_header(self.request, response, zodb_blob,
                                     file=file, disposition=disposition):
-                # Avoid self.set_headers(file): it calls file.getSize() which
-                # on S3-backed blobs without a cached size opens the blob and
-                # downloads it — exactly what xsendfile is trying to avoid.
-                # Replicate just the bits we need; nginx/S3 sets Content-Length.
-                set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
             self.set_headers(file)
             return stream_data(file)
