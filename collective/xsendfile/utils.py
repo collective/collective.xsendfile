@@ -328,13 +328,16 @@ def is_head_request(request):
     return request.get('REQUEST_METHOD', 'GET').upper() == 'HEAD'
 
 
-def _size_without_opening(file):
+def _size_without_opening(file, request):
     """Return the file's size without opening its blob, or None.
 
     Opening the blob is what xsendfile avoids: on S3BlobStorage it downloads
     the whole object, and on RelStorage it copies it out of the database. So
     use the size plone.namedfile stores on the file (an upload's indexing
     stores it), or for a blob in S3, the size S3 has for the object.
+
+    A size from S3 isn't stored on the file, as that would write on a read.
+    It's logged instead: a missing size should be fixed separately.
     """
     if not (HAS_NAMEDFILE and IBlobby.providedBy(file)):
         return file.getSize()  # the data is in the file's own record
@@ -351,9 +354,41 @@ def _size_without_opening(file):
     size = _s3_blob_size(
         storage, zodb_blob._p_oid, _committed_serial(zodb_blob, storage))
     if size is not None:
-        # Where plone.namedfile keeps it, so its set_headers uses it
-        file.__dict__['size'] = size
+        logger.warning(
+            'xsendfile: the size of %s was fetched from S3, because it '
+            'isn\'t stored on the file (oid=%r)',
+            request.get('ACTUAL_URL') or request.get('PATH_INFO', '?'),
+            zodb_blob._p_oid,
+        )
     return size
+
+
+class _SizedFile(object):
+    """A file whose ``getSize()`` returns the size given here.
+
+    plone.namedfile's ``set_headers`` calls ``getSize()``, which opens the
+    blob when no size is stored on the file. Passing it this instead gives
+    the view's own headers without opening the blob.
+    """
+
+    def __init__(self, file, size):
+        self._file = file
+        self._size = size
+
+    def __getattr__(self, name):
+        return getattr(self._file, name)
+
+    def getSize(self):
+        return self._size
+
+
+def set_view_headers(view, file, size=None):
+    """Set the headers ``view`` sets for ``file`` (plone.namedfile's
+    ``set_headers``), without opening the blob: with ``size`` as the
+    Content-Length, or none without it."""
+    view.set_headers(_SizedFile(file, size))
+    if size is None:
+        view.request.response.headers.pop('content-length', None)
 
 
 def set_xsendfile_header(request, response, blob, file=None):
@@ -479,6 +514,12 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
+            if is_head_request(self.request):
+                # The headers a GET gets, and no body, without handing off or
+                # opening the blob. Without a size, there's no Content-Length.
+                set_view_headers(
+                    self, file, _size_without_opening(file, self.request))
+                return ''
             if HAS_NAMEDFILE and IBlobby.providedBy(file):
                 zodb_blob = file._blob
             else:
@@ -492,14 +533,6 @@ if HAS_NAMEDFILE:
                     and _inline_allowed(self, file)):
                 filename = self.filename or getattr(file, 'filename', None) \
                     or self.fieldname or 'file.ext'
-            if is_head_request(self.request):
-                # The headers a GET gets, and no body, without handing off or
-                # opening the blob. Without a size, there's no Content-Length.
-                if _size_without_opening(file) is None:
-                    set_headers_no_length(file, response, filename=filename)
-                else:
-                    self.set_headers(file)
-                return ''
             if set_xsendfile_header(self.request, response, zodb_blob,
                                     file=file):
                 # Avoid self.set_headers(file): it calls file.getSize() which
@@ -533,11 +566,11 @@ if HAS_NAMEDFILE:
             self.filename = getattr(file_, 'filename', None)
 
         if is_head_request(self.request):
-            if _size_without_opening(file_) is None:
-                set_headers_no_length(
-                    file_, self.request.response, filename=self.filename)
-            else:
-                set_headers(file_, self.request.response, filename=self.filename)
+            size = _size_without_opening(file_, self.request)
+            set_headers(_SizedFile(file_, size), self.request.response,
+                        filename=self.filename)
+            if size is None:
+                self.request.response.headers.pop('content-length', None)
             return ''
 
         if IBlobby.providedBy(file_):

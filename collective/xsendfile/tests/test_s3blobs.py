@@ -115,13 +115,18 @@ if HAS_S3BLOBS:
             downloads = self._cold(file._blob)
             self.request.environ['REQUEST_METHOD'] = 'HEAD'
             view = self.portal['file'].unrestrictedTraverse('@@download')
-            self.assertEqual(view.publishTraverse(self.request, 'file')(), '')
+            with self.assertLogs('collective.xsendfile', 'WARNING') as logs:
+                self.assertEqual(
+                    view.publishTraverse(self.request, 'file')(), '')
+            self.assertIn('fetched from S3', logs.output[0])
             response = self.request.RESPONSE
             self.assertIsNone(response.getHeader('X-S3-Url'))
             self.assertEqual(
                 response.getHeader('Content-Length'),
                 str(len(getData('image.gif'))))
             self.assertEqual(downloads, [])
+            # A read doesn't write the size onto the file
+            self.assertNotIn('size', file.__dict__)
 
         def test_blob_changed_in_transaction_is_not_delegated(self):
             """S3 only has the committed revision, so stream the new data."""
