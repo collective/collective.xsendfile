@@ -423,8 +423,9 @@ if HAS_NAMEDFILE:
                 # Replicate just the bits we need; nginx/S3 sets Content-Length.
                 set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
-            self.set_headers(file)
-            return stream_data(file)
+        # Not delegated: serve it as plone.namedfile does, with its range
+        # support (Range, If-Range) and anything else it adds later.
+        return self._old___call__()
 
     def monkeypatch_plone_formwidget_namedfile_widget_download__call__(self):
         """ Patches to plone.formwidget.namedfile.widget.Download.__call__
@@ -455,8 +456,8 @@ if HAS_NAMEDFILE:
                                 file=file_, disposition='attachment'):
             set_headers_no_length(file_, response, filename=self.filename)
             return 'collective.xsendfile - proxy missing?'
-        set_headers(file_, response, filename=self.filename)
-        return stream_data(file_)
+        # Not delegated: serve it as plone.formwidget.namedfile does.
+        return self._old___call__()
 
     def plone_namedfile_scaling_ImageScale_index_html(self):
         """ download the image """
