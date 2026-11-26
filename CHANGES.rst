@@ -10,6 +10,8 @@ Changelog
   [instification]
 - Answer HEAD requests for downloads without handing off to the proxy
   [instification]
+- Only display files inline when plone.namedfile allows it
+  [instification]
 
 
 2.0.1 (2026-10-28)
