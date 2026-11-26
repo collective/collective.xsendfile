@@ -115,7 +115,10 @@ class DownloadTestCase(BaseTestCase):
         response, body = self._head('@@display-file')
         self.assertEqual(body, '')
         self.assertIsNone(response.getHeader('X-SENDFILE'))
-        self.assertIsNone(response.getHeader('Content-Disposition'))
+        # Shown inline, as plone.namedfile's DisplayFile does: no header, or
+        # (from plone.namedfile 7.1) an inline one with the filename.
+        disposition = response.getHeader('Content-Disposition') or 'inline'
+        self.assertTrue(disposition.startswith('inline'), disposition)
 
     def _image_scale(self):
         scales = self.portal['image'].unrestrictedTraverse('@@images')
