@@ -4,10 +4,7 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
-- When a download isn't handed to the proxy, call the original
-  ``@@download`` / ``@@display-file`` view and the form widget's download view
-  instead of a copy of them. The copies predated plone.namedfile's range
-  support, so Zope answered a ``Range`` request with the whole file and a 200.
+- Call the original download views when not handing off to the proxy
   [instification]
 
 
