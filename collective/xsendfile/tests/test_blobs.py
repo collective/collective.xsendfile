@@ -85,7 +85,8 @@ class DownloadTestCase(BaseTestCase):
             self.request.environ['HTTP_' + name.upper().replace('-', '_')] = value
         view = self.portal['file'].unrestrictedTraverse('@@download')
         result = view.publishTraverse(self.request, 'file')()
-        body = result if isinstance(result, bytes) else b''.join(result)
+        # A handoff returns a placeholder string instead of the file
+        body = result if isinstance(result, (bytes, str)) else b''.join(result)
         if hasattr(result, 'close'):
             result.close()
         return self.request.RESPONSE, body
