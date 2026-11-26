@@ -486,31 +486,6 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 #  and also used for ../context/@@display-file/fieldname/filename
 
 if HAS_NAMEDFILE:
-    def _media_type(content_type):
-        """The media type of a Content-Type, as plone.namedfile compares it."""
-        try:
-            from plone.namedfile.utils import extract_media_type
-        except ImportError:
-            return content_type.split(';', 1)[0].strip().lower()
-        return extract_media_type(content_type)
-
-    def _inline_allowed(view, file):
-        """True if ``view`` (a DisplayFile) may show ``file`` inline.
-
-        As DisplayFile.set_headers: only types on its allowlist (or off its
-        denylist) are shown inline, and any other type, such as HTML or SVG,
-        is downloaded so that it can't run as a page of the site.
-        """
-        content_type = getattr(file, 'contentType', None)
-        if not content_type:
-            return True
-        media_type = _media_type(content_type)
-        if getattr(view, 'use_denylist', False):
-            return media_type not in getattr(
-                view, 'disallowed_inline_mimetypes', ())
-        allowed = getattr(view, 'allowed_inline_mimetypes', None)
-        return allowed is None or media_type in allowed
-
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
@@ -525,21 +500,13 @@ if HAS_NAMEDFILE:
             else:
                 zodb_blob = file
             response = self.request.response
-            from plone.namedfile.browser import DisplayFile
-            # Inline for a DisplayFile whose type may be shown inline (image
-            # previews), attachment for downloads and every other type.
-            filename = None
-            if not (isinstance(self, DisplayFile)
-                    and _inline_allowed(self, file)):
-                filename = self.filename or getattr(file, 'filename', None) \
-                    or self.fieldname or 'file.ext'
+            # The view's own headers, so plone.namedfile decides the
+            # disposition, including which types DisplayFile shows inline.
+            # Without Content-Length, which nginx/S3 sets: getSize() could
+            # open the blob, which is what xsendfile avoids.
+            set_view_headers(self, file)
             if set_xsendfile_header(self.request, response, zodb_blob,
                                     file=file):
-                # Avoid self.set_headers(file): it calls file.getSize() which
-                # on S3-backed blobs without a cached size opens the blob and
-                # downloads it — exactly what xsendfile is trying to avoid.
-                # Replicate just the bits we need; nginx/S3 sets Content-Length.
-                set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
         # Not delegated: serve it as plone.namedfile does, with its range
         # support (Range, If-Range) and anything else it adds later.
