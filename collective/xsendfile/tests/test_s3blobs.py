@@ -105,6 +105,24 @@ if HAS_S3BLOBS:
                 response.getHeader('Content-Length'), str(file.size))
             self.assertEqual(downloads, [])
 
+        def test_head_size_from_s3(self):
+            """Without a stored size, a HEAD gets it from S3's metadata,
+            still without downloading the blob."""
+            from collective.xsendfile.testing import getData
+
+            file = self.portal['file'].file
+            file.__dict__.pop('size', None)
+            downloads = self._cold(file._blob)
+            self.request.environ['REQUEST_METHOD'] = 'HEAD'
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            self.assertEqual(view.publishTraverse(self.request, 'file')(), '')
+            response = self.request.RESPONSE
+            self.assertIsNone(response.getHeader('X-S3-Url'))
+            self.assertEqual(
+                response.getHeader('Content-Length'),
+                str(len(getData('image.gif'))))
+            self.assertEqual(downloads, [])
+
         def test_blob_changed_in_transaction_is_not_delegated(self):
             """S3 only has the committed revision, so stream the new data."""
             from collective.xsendfile.utils import set_xsendfile_header

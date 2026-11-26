@@ -93,6 +93,7 @@ class DownloadTestCase(BaseTestCase):
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
         self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
 
+        self.portal['file'].file.size  # stored, as an upload's indexing does
         response, body = self._head()
         self.assertEqual(body, '')
         self.assertIsNone(response.getHeader('X-SENDFILE'))
@@ -102,6 +103,19 @@ class DownloadTestCase(BaseTestCase):
         self.assertEqual(
             response.getHeader('Content-Disposition'),
             "attachment; filename*=UTF-8''image.gif")
+
+    def test_head_without_stored_size(self):
+        """Without a stored size, a blob that isn't in S3 isn't opened to
+        find it: the HEAD just has no Content-Length."""
+        file = self.portal['file'].file
+        file.__dict__.pop('size', None)
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('Content-Length'))
+        self.assertEqual(
+            response.getHeader('Content-Disposition'),
+            "attachment; filename*=UTF-8''image.gif")
+        self.assertNotIn('size', file.__dict__)
 
     def test_head_not_configured(self):
         response, body = self._head()
