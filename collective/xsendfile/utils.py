@@ -400,6 +400,31 @@ def plone_app_blob_field_BlobWrapper_getIterator(self, **kw):
 #  and also used for ../context/@@display-file/fieldname/filename
 
 if HAS_NAMEDFILE:
+    def _media_type(content_type):
+        """The media type of a Content-Type, as plone.namedfile compares it."""
+        try:
+            from plone.namedfile.utils import extract_media_type
+        except ImportError:
+            return content_type.split(';', 1)[0].strip().lower()
+        return extract_media_type(content_type)
+
+    def _inline_allowed(view, file):
+        """True if ``view`` (a DisplayFile) may show ``file`` inline.
+
+        As DisplayFile.set_headers: only types on its allowlist (or off its
+        denylist) are shown inline, and any other type, such as HTML or SVG,
+        is downloaded so that it can't run as a page of the site.
+        """
+        content_type = getattr(file, 'contentType', None)
+        if not content_type:
+            return True
+        media_type = _media_type(content_type)
+        if getattr(view, 'use_denylist', False):
+            return media_type not in getattr(
+                view, 'disallowed_inline_mimetypes', ())
+        allowed = getattr(view, 'allowed_inline_mimetypes', None)
+        return allowed is None or media_type in allowed
+
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
@@ -409,12 +434,14 @@ if HAS_NAMEDFILE:
                 zodb_blob = file
             response = self.request.response
             from plone.namedfile.browser import DisplayFile
+            # Inline for a DisplayFile whose type may be shown inline (image
+            # previews), attachment for downloads and every other type.
             filename = None
-            if not isinstance(self, DisplayFile):
+            if not (isinstance(self, DisplayFile)
+                    and _inline_allowed(self, file)):
                 filename = self.filename or getattr(file, 'filename', None) \
                     or self.fieldname or 'file.ext'
-            # Inline for DisplayFile (image previews), attachment for downloads.
-            disposition = 'inline' if isinstance(self, DisplayFile) else 'attachment'
+            disposition = 'inline' if filename is None else 'attachment'
             if set_xsendfile_header(self.request, response, zodb_blob,
                                     file=file, disposition=disposition):
                 # Avoid self.set_headers(file): it calls file.getSize() which

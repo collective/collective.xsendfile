@@ -80,6 +80,31 @@ class DownloadTestCase(BaseTestCase):
         response = self._download()
         self.assertIsNone(response.getHeader('X-SENDFILE'))
 
+    def _display_file(self):
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        view = self.portal['file'].unrestrictedTraverse('@@display-file')
+        view.publishTraverse(self.request, 'file')()
+        response = self.request.RESPONSE
+        self.assertIsNotNone(response.getHeader('X-SENDFILE'))
+        return response
+
+    def test_display_file_inline(self):
+        """A type that may be shown inline gets no Content-Disposition."""
+        self.assertIsNone(self._display_file().getHeader('Content-Disposition'))
+
+    def test_display_file_html_is_downloaded(self):
+        """As plone.namedfile's DisplayFile: a type that may not be shown
+        inline is downloaded, so it can't run as a page of the site."""
+        for content_type in ('text/html', 'image/svg+xml; charset=utf-8'):
+            self.portal['file'].file.contentType = content_type
+            self.request.RESPONSE.headers.pop('content-disposition', None)
+            self.assertEqual(
+                self._display_file().getHeader('Content-Disposition'),
+                "attachment; filename*=UTF-8''image.gif",
+                content_type,
+            )
+
     def _image_scale(self):
         scales = self.portal['image'].unrestrictedTraverse('@@images')
         scale = scales.publishTraverse(self.request, 'image')

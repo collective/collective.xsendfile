@@ -4,7 +4,8 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Only display files inline when plone.namedfile allows it
+  [instification]
 
 
 2.0.1 (2026-10-28)
