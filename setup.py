@@ -3,7 +3,7 @@ from setuptools import find_namespace_packages
 from setuptools import setup
 
 
-version = '2.0.2.dev0'
+version = '2.0.2'
 
 setup(
     name='collective.xsendfile',
