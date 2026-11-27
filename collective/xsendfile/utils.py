@@ -87,6 +87,7 @@ def _presigned_url(storage, oid, serial, content_type=None, expires_in=60):
         )
         return None
 
+
 try:
     from plone.namedfile.utils import get_contenttype
     from plone.namedfile.utils import set_headers
@@ -297,6 +298,34 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
+class _SizedFile(object):
+    """A file whose ``getSize()`` returns the size given here.
+
+    plone.namedfile's ``set_headers`` calls ``getSize()``, which opens the
+    blob when no size is stored on the file. Passing it this instead gives
+    the view's own headers without opening the blob.
+    """
+
+    def __init__(self, file, size):
+        self._file = file
+        self._size = size
+
+    def __getattr__(self, name):
+        return getattr(self._file, name)
+
+    def getSize(self):
+        return self._size
+
+
+def set_view_headers(view, file, size=None):
+    """Set the headers ``view`` sets for ``file`` (plone.namedfile's
+    ``set_headers``), without opening the blob: with ``size`` as the
+    Content-Length, or none without it."""
+    view.set_headers(_SizedFile(file, size))
+    if size is None:
+        view.request.response.headers.pop('content-length', None)
+
+
 def set_xsendfile_header(request, response, blob, file=None):
     """ set the xsendheader response header if enabled
         Inject X-Sendfile and X-Accel-Redirect headers into response.
@@ -400,18 +429,13 @@ if HAS_NAMEDFILE:
             else:
                 zodb_blob = file
             response = self.request.response
-            from plone.namedfile.browser import DisplayFile
-            filename = None
-            if not isinstance(self, DisplayFile):
-                filename = self.filename or getattr(file, 'filename', None) \
-                    or self.fieldname or 'file.ext'
+            # The view's own headers, so plone.namedfile decides the
+            # disposition, including which types DisplayFile shows inline.
+            # Without Content-Length, which nginx/S3 sets: getSize() could
+            # open the blob, which is what xsendfile avoids.
+            set_view_headers(self, file)
             if set_xsendfile_header(self.request, response, zodb_blob,
                                     file=file):
-                # Avoid self.set_headers(file): it calls file.getSize() which
-                # on S3-backed blobs without a cached size opens the blob and
-                # downloads it — exactly what xsendfile is trying to avoid.
-                # Replicate just the bits we need; nginx/S3 sets Content-Length.
-                set_headers_no_length(file, response, filename=filename)
                 return 'collective.xsendfile - proxy missing?'
         # Not delegated: serve it as plone.namedfile does, with its range
         # support (Range, If-Range) and anything else it adds later.
