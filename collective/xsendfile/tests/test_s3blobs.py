@@ -88,6 +88,46 @@ if HAS_S3BLOBS:
             self._assert_presigned(self.request.RESPONSE, blob)
             self.assertEqual(downloads, [])
 
+        def test_head_needs_no_download(self):
+            """A HEAD on an S3 blob whose size is stored on the file neither
+            hands off (S3 refuses a HEAD on a URL presigned for GET) nor
+            downloads the blob."""
+            file = self.portal['file'].file
+            file.size  # stored on the file, as an upload's indexing does
+            downloads = self._cold(file._blob)
+            self.request.environ['REQUEST_METHOD'] = 'HEAD'
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            self.assertEqual(view.publishTraverse(self.request, 'file')(), '')
+            response = self.request.RESPONSE
+            self.assertIsNone(response.getHeader('X-Accel-Redirect'))
+            self.assertIsNone(response.getHeader('X-S3-Url'))
+            self.assertEqual(
+                response.getHeader('Content-Length'), str(file.size))
+            self.assertEqual(downloads, [])
+
+        def test_head_size_from_s3(self):
+            """Without a stored size, a HEAD gets it from S3's metadata,
+            still without downloading the blob."""
+            from collective.xsendfile.testing import getData
+
+            file = self.portal['file'].file
+            file.__dict__.pop('size', None)
+            downloads = self._cold(file._blob)
+            self.request.environ['REQUEST_METHOD'] = 'HEAD'
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            with self.assertLogs('collective.xsendfile', 'WARNING') as logs:
+                self.assertEqual(
+                    view.publishTraverse(self.request, 'file')(), '')
+            self.assertIn('fetched from S3', logs.output[0])
+            response = self.request.RESPONSE
+            self.assertIsNone(response.getHeader('X-S3-Url'))
+            self.assertEqual(
+                response.getHeader('Content-Length'),
+                str(len(getData('image.gif'))))
+            self.assertEqual(downloads, [])
+            # A read doesn't write the size onto the file
+            self.assertNotIn('size', file.__dict__)
+
         def test_blob_changed_in_transaction_is_not_delegated(self):
             """S3 only has the committed revision, so stream the new data."""
             from collective.xsendfile.utils import set_xsendfile_header

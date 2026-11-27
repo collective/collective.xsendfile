@@ -8,6 +8,8 @@ Changelog
   [instification]
 - Call the original download views when not handing off to the proxy
   [instification]
+- Answer HEAD requests for downloads without handing off to the proxy
+  [instification]
 - Only display files inline when plone.namedfile allows it
   [instification]
 

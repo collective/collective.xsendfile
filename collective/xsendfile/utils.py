@@ -64,7 +64,8 @@ def _presigned_url(storage, oid, serial, content_type=None, expires_in=60):
     the key) or if signing fails.
 
     Relies on zodb-s3blobs internals (as of 1.1.0): the storage's key layout,
-    pending blobs and S3 client. Keep that access to this function.
+    pending blobs and S3 client. Keep that access to this function and
+    ``_s3_blob_size``.
     """
     if oid is None or serial in (None, z64):
         return None
@@ -87,6 +88,25 @@ def _presigned_url(storage, oid, serial, content_type=None, expires_in=60):
         )
         return None
 
+
+def _s3_blob_size(storage, oid, serial):
+    """Return a committed blob's size from S3's metadata, or None.
+
+    Sends S3 a HEAD for the object, so nothing is downloaded. Returns None
+    when there is no committed revision (as ``_presigned_url``) or the
+    request fails.
+    """
+    if oid is None or serial in (None, z64) or oid in storage._pending_blobs:
+        return None
+    try:
+        head = storage._s3_client.head_object(storage._s3_key(oid, serial))
+    except Exception:
+        logger.warning(
+            'xsendfile: failed to get the S3 size for oid=%r serial=%r',
+            oid, serial, exc_info=True,
+        )
+        return None
+    return head.get('ContentLength') if head else None
 
 try:
     from plone.namedfile.utils import get_contenttype
@@ -298,6 +318,51 @@ def _set_local_xsendfile_header(request, response, blob, settings):
     return True
 
 
+def is_head_request(request):
+    """True for a HEAD request.
+
+    The download patches answer a HEAD from the file's metadata, without
+    handing off to the proxy: nginx would send the HEAD on to S3 with a URL
+    presigned for GET, which S3 refuses.
+    """
+    return request.get('REQUEST_METHOD', 'GET').upper() == 'HEAD'
+
+
+def _size_without_opening(file, request):
+    """Return the file's size without opening its blob, or None.
+
+    Opening the blob is what xsendfile avoids: on S3BlobStorage it downloads
+    the whole object, and on RelStorage it copies it out of the database. So
+    use the size plone.namedfile stores on the file (an upload's indexing
+    stores it), or for a blob in S3, the size S3 has for the object.
+
+    A size from S3 isn't stored on the file, as that would write on a read.
+    It's logged instead: a missing size should be fixed separately.
+    """
+    if not (HAS_NAMEDFILE and IBlobby.providedBy(file)):
+        return file.getSize()  # the data is in the file's own record
+    stored = getattr(file, '__dict__', {}).get('size')
+    if stored is not None:
+        return stored
+    zodb_blob = _get_zodb_blob(file)
+    if zodb_blob is None:
+        return None
+    storage_info = _resolve_s3_blob_storage(zodb_blob)
+    if storage_info is None or zodb_blob._p_oid is None or zodb_blob._p_changed:
+        return None
+    storage = storage_info[0]
+    size = _s3_blob_size(
+        storage, zodb_blob._p_oid, _committed_serial(zodb_blob, storage))
+    if size is not None:
+        logger.warning(
+            'xsendfile: the size of %s was fetched from S3, because it '
+            'isn\'t stored on the file (oid=%r)',
+            request.get('ACTUAL_URL') or request.get('PATH_INFO', '?'),
+            zodb_blob._p_oid,
+        )
+    return size
+
+
 class _SizedFile(object):
     """A file whose ``getSize()`` returns the size given here.
 
@@ -424,6 +489,12 @@ if HAS_NAMEDFILE:
     def monkeypatch_plone_namedfile_browser_Download__call__(self):
         file = self._getFile()
         if file:
+            if is_head_request(self.request):
+                # The headers a GET gets, and no body, without handing off or
+                # opening the blob. Without a size, there's no Content-Length.
+                set_view_headers(
+                    self, file, _size_without_opening(file, self.request))
+                return ''
             if HAS_NAMEDFILE and IBlobby.providedBy(file):
                 zodb_blob = file._blob
             else:
@@ -460,6 +531,14 @@ if HAS_NAMEDFILE:
 
         if not self.filename:
             self.filename = getattr(file_, 'filename', None)
+
+        if is_head_request(self.request):
+            size = _size_without_opening(file_, self.request)
+            set_headers(_SizedFile(file_, size), self.request.response,
+                        filename=self.filename)
+            if size is None:
+                self.request.response.headers.pop('content-length', None)
+            return ''
 
         if IBlobby.providedBy(file_):
             zodb_blob = file_._blob

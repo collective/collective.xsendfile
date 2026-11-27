@@ -123,6 +123,60 @@ class DownloadTestCase(BaseTestCase):
         self.assertEqual(response.getStatus(), 200)
         self.assertIsNone(response.getHeader('Content-Range'))
 
+    def _head(self, view_name='@@download'):
+        self.request.environ['REQUEST_METHOD'] = 'HEAD'
+        view = self.portal['file'].unrestrictedTraverse(view_name)
+        body = view.publishTraverse(self.request, 'file')()
+        return self.request.RESPONSE, body
+
+    def test_head_is_not_delegated(self):
+        """A HEAD gets the GET's headers from the file, not a handoff."""
+        from collective.xsendfile.testing import getData
+
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        self.portal['file'].file.size  # stored, as an upload's indexing does
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
+        self.assertEqual(response.getHeader('Content-Type'), 'image/gif')
+        self.assertEqual(
+            response.getHeader('Content-Length'), str(len(getData('image.gif'))))
+        self.assertEqual(
+            response.getHeader('Content-Disposition'),
+            "attachment; filename*=UTF-8''image.gif")
+
+    def test_head_without_stored_size(self):
+        """Without a stored size, a blob that isn't in S3 isn't opened to
+        find it: the HEAD just has no Content-Length."""
+        file = self.portal['file'].file
+        file.__dict__.pop('size', None)
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('Content-Length'))
+        self.assertEqual(
+            response.getHeader('Content-Disposition'),
+            "attachment; filename*=UTF-8''image.gif")
+        self.assertNotIn('size', file.__dict__)
+
+    def test_head_not_configured(self):
+        response, body = self._head()
+        self.assertEqual(body, '')
+        self.assertEqual(response.getHeader('Content-Type'), 'image/gif')
+
+    def test_head_display_file(self):
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        response, body = self._head('@@display-file')
+        self.assertEqual(body, '')
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
+        # Shown inline, as plone.namedfile's DisplayFile does: no header, or
+        # (in the plone.namedfile of Plone 6.2) an inline one with the filename.
+        disposition = response.getHeader('Content-Disposition') or 'inline'
+        self.assertTrue(disposition.startswith('inline'), disposition)
+
     def _display_file(self):
         os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
         self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
