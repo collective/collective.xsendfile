@@ -4,7 +4,13 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
+- Prevent duplicate content-disposition headers when using presigned s3 urls
+  [instification]
+- Call the original download views when not handing off to the proxy
+  [instification]
 - Answer HEAD requests for downloads without handing off to the proxy
+  [instification]
+- Only display files inline when plone.namedfile allows it
   [instification]
 
 

@@ -148,6 +148,46 @@ if HAS_S3BLOBS:
             )
             self.assertIsNotNone(response.getHeader('X-S3-Url'))
 
+        def _presigned_query(self, response):
+            from urllib.parse import parse_qs
+            from urllib.parse import urlparse
+
+            return parse_qs(urlparse(response.getHeader('X-S3-Url')).query)
+
+        def test_file_download_has_one_content_disposition(self):
+            """nginx keeps Zope's Content-Disposition through the redirect,
+            so the presigned URL mustn't ask S3 for a second one."""
+            view = self.portal['file'].unrestrictedTraverse('@@download')
+            view.publishTraverse(self.request, 'file')()
+            response = self.request.RESPONSE
+            query = self._presigned_query(response)
+            self.assertNotIn('response-content-disposition', query)
+            self.assertEqual(query['response-content-type'], ['image/gif'])
+            self.assertEqual(
+                response.getHeader('Content-Disposition'),
+                "attachment; filename*=UTF-8''image.gif",
+            )
+
+        def test_display_file_has_no_content_disposition(self):
+            view = self.portal['file'].unrestrictedTraverse('@@display-file')
+            view.publishTraverse(self.request, 'file')()
+            response = self.request.RESPONSE
+            self.assertEqual(
+                response.getHeader('X-Accel-Redirect'), '/s3-internal/',
+            )
+            self.assertNotIn(
+                'response-content-disposition', self._presigned_query(response))
+            # Only Zope's header, if any, and it shows the file inline
+            disposition = response.getHeader('Content-Disposition')
+            self.assertTrue(
+                (disposition or 'inline').startswith('inline'), disposition)
+
+        def test_image_has_no_content_disposition(self):
+            response = self._serve_image()
+            self.assertNotIn(
+                'response-content-disposition', self._presigned_query(response))
+            self.assertIsNone(response.getHeader('Content-Disposition'))
+
     class PresignedUrlTestCase(unittest.TestCase):
         """``_presigned_url`` against zodb-s3blobs with a moto bucket."""
 
@@ -215,22 +255,16 @@ if HAS_S3BLOBS:
             self.assertNotIn('response-content-type', query)
             self.assertNotIn('response-content-disposition', query)
 
-        def test_response_headers(self):
+        def test_response_content_type(self):
             from collective.xsendfile.utils import _presigned_url
             from ZODB.utils import p64
 
             tid = self._store(self.storage)
             _path, query = self._query(_presigned_url(
-                self.storage, p64(1), tid, content_type='application/pdf',
-                filename='Résumé "final"\r\n.pdf', disposition='attachment',
-            ))
+                self.storage, p64(1), tid, content_type='application/pdf'))
             self.assertEqual(
                 query['response-content-type'], ['application/pdf'])
-            self.assertEqual(
-                query['response-content-disposition'],
-                ["attachment; filename*=UTF-8''"
-                 "R%C3%A9sum%C3%A9%20%22final%22%0D%0A.pdf"],
-            )
+            self.assertNotIn('response-content-disposition', query)
 
         def test_none_without_committed_revision(self):
             from collective.xsendfile.utils import _presigned_url

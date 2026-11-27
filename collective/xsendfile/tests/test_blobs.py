@@ -80,6 +80,49 @@ class DownloadTestCase(BaseTestCase):
         response = self._download()
         self.assertIsNone(response.getHeader('X-SENDFILE'))
 
+    def _download_body(self, **headers):
+        for name, value in headers.items():
+            self.request.environ['HTTP_' + name.upper().replace('-', '_')] = value
+        view = self.portal['file'].unrestrictedTraverse('@@download')
+        result = view.publishTraverse(self.request, 'file')()
+        # A handoff returns a placeholder string instead of the file
+        body = result if isinstance(result, (bytes, str)) else b''.join(result)
+        if hasattr(result, 'close'):
+            result.close()
+        return self.request.RESPONSE, body
+
+    def test_range_when_not_delegated(self):
+        """Zope serves the range, as plone.namedfile does."""
+        from collective.xsendfile.testing import getData
+
+        data = getData('image.gif')
+        response, body = self._download_body(range='bytes=2-5')
+        self.assertIsNone(response.getHeader('X-SENDFILE'))
+        self.assertEqual(response.getStatus(), 206)
+        self.assertEqual(
+            response.getHeader('Content-Range'), 'bytes 2-5/%d' % len(data))
+        self.assertEqual(body, data[2:6])
+
+    def test_if_range_when_not_delegated(self):
+        from collective.xsendfile.testing import getData
+
+        data = getData('image.gif')
+        response, body = self._download_body(
+            range='bytes=2-5', if_range='"some-etag"')
+        self.assertEqual(response.getStatus(), 200)
+        self.assertIsNone(response.getHeader('Content-Range'))
+        self.assertEqual(body, data)
+
+    def test_range_when_delegated(self):
+        """The proxy serves the range from the file, so Zope doesn't."""
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+
+        response, _body = self._download_body(range='bytes=2-5')
+        self.assertIsNotNone(response.getHeader('X-SENDFILE'))
+        self.assertEqual(response.getStatus(), 200)
+        self.assertIsNone(response.getHeader('Content-Range'))
+
     def _head(self, view_name='@@download'):
         self.request.environ['REQUEST_METHOD'] = 'HEAD'
         view = self.portal['file'].unrestrictedTraverse(view_name)
@@ -133,6 +176,34 @@ class DownloadTestCase(BaseTestCase):
         # (in the plone.namedfile of Plone 6.2) an inline one with the filename.
         disposition = response.getHeader('Content-Disposition') or 'inline'
         self.assertTrue(disposition.startswith('inline'), disposition)
+
+    def _display_file(self):
+        os.environ['XSENDFILE_RESPONSEHEADER'] = 'X-SENDFILE'
+        self.request.set('HTTP_X_FORWARDED_FOR', '0.0.0.0')
+        view = self.portal['file'].unrestrictedTraverse('@@display-file')
+        view.publishTraverse(self.request, 'file')()
+        response = self.request.RESPONSE
+        self.assertIsNotNone(response.getHeader('X-SENDFILE'))
+        return response
+
+    def test_display_file_inline(self):
+        """A type that may be shown inline isn't made a download: no header,
+        or (in the plone.namedfile of Plone 6.2) an inline one."""
+        disposition = self._display_file().getHeader('Content-Disposition')
+        self.assertTrue((disposition or 'inline').startswith('inline'),
+                        disposition)
+
+    def test_display_file_html_is_downloaded(self):
+        """As plone.namedfile's DisplayFile: a type that may not be shown
+        inline is downloaded, so it can't run as a page of the site."""
+        for content_type in ('text/html', 'image/svg+xml; charset=utf-8'):
+            self.portal['file'].file.contentType = content_type
+            self.request.RESPONSE.headers.pop('content-disposition', None)
+            self.assertEqual(
+                self._display_file().getHeader('Content-Disposition'),
+                "attachment; filename*=UTF-8''image.gif",
+                content_type,
+            )
 
     def _image_scale(self):
         scales = self.portal['image'].unrestrictedTraverse('@@images')
