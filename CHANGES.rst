@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 - Call the original download views when not handing off to the proxy
+- Prevent duplicate content-disposition headers when using presigned s3 urls
   [instification]
 
 
