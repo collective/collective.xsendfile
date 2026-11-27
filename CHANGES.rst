@@ -4,7 +4,8 @@ Changelog
 2.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Prevent duplicate content-disposition headers when using presigned s3 urls
+  [instification]
 
 
 2.0.1 (2026-10-28)
